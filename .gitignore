@@ -1,0 +1,11 @@
+*~
+*#*
+.DS*
+*.cm
+*.class
+*.pyc
+*.pyd
+*.so
+src/
+.noseids
+settings.py
