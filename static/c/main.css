@@ -1,0 +1,12 @@
+body {
+    font-size: 108%;
+    font-family: monospace;
+    padding: 1em;
+    letter-spacing: 0.1em;
+}
+ul li {
+    margin-top: 0.75em;
+}
+#f {
+    padding-top: 1em;
+}

@@ -14,11 +14,11 @@
 {% endif %}
 <div class="yes-user" {% if not user %}style="display: none;"{% endif %}>
   <h1>Hi, <span class="handle">{{ user.handle }}</span>!</h1>
-  <h2>Choose a repository to create a mailing list for:</h2>
+  <h2>Choose a repository to create a mailing list for</h2>
   <div class="repos">
     <ul>
       {% for repo in user["repos"] %}
-      <li><a href="/repo/{{ repo.name }}">{{ repo.name }} - {{ repo.description }}</a></li>
+      <li><a href="/repo/{{ repo.name }}">{{ repo.name }}</a> {{ repo.description }}</li>
       {% endfor %}
     </ul>
     {% for org in user["orgs"] %}
@@ -26,7 +26,7 @@
     <h3>{{ org.handle }}</h3>
     <ul>
       {% for repo in org["repos"] %}
-      <li><a href="/repo/{{ org.handle }}/{{ repo.name }}">{{ repo.name }} - {{ repo.description }}</a></li>
+      <li><a href="/repo/{{ org.handle }}/{{ repo.name }}">{{ repo.name }}</a> {{ repo.description }}</li>
       {% endfor %}
     </ul>
     {% endif %}

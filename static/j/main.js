@@ -11,13 +11,19 @@ function loadingBars() {
     setTimeout(loadingBars, 500);
 }
 
-function reposUl(repos) {
+function reposUl(repos, org) {
     var ul = jQuery("<ul>");
     for(var i = 0; i < repos.length; i += 1) {
         var repo = repos[i];
         var name = repo["name"];
         var description = repo["description"];
-        var li = jQuery("<li>").html(name + " - " + description);
+        var url;
+        if(org) {
+            url = "/repo/" + org + "/" + name;
+        } else {
+            url = "/repo/" + name;
+        }
+        var li = jQuery("<li>").html("<a href='" + url + "'>" + name + "</a> " + description);
         jQuery(".repos").append(li);
     }
     return ul;
@@ -36,7 +42,7 @@ function loadUserData() {
                 var org = data["orgs"][i];
                 if (org["repos"].length) {
                     jQuery(".repos").append(jQuery("<h3>").html(org["handle"]));
-                    jQuery(".repos").append(reposUl(org["repos"]));
+                    jQuery(".repos").append(reposUl(org["repos"], org["handle"]));
                 }
             }
             jQuery(".yes-user").show();
