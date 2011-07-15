@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block scripts %}
+{% if not user %}
+<script type="text/javascript">jQuery(loadUserData);</script>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+{% if not user %}
+<div class="no-user">
+  <h1>Collecting info from Github<span class="loading-bar"></span></h1>
+</div>
+{% endif %}
+<div class="yes-user" {% if not user %}style="display: none;"{% endif %}>
+  <h1>Hi, <span class="handle">{{ user.handle }}</span>!</h1>
+  <h2>Choose a repository to create a mailing list for:</h2>
+  <div class="repos">
+    <ul>
+      {% for repo in user["repos"] %}
+      <li><a href="/repo/{{ repo.name }}">{{ repo.name }} - {{ repo.description }}</a></li>
+      {% endfor %}
+    </ul>
+    {% for org in user["orgs"] %}
+    {% if org.repos %}
+    <h3>{{ org.handle }}</h3>
+    <ul>
+      {% for repo in org["repos"] %}
+      <li><a href="/repo/{{ org.handle }}/{{ repo.name }}">{{ repo.name }} - {{ repo.description }}</a></li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+    {% endfor %}
+  </div>
+  <form name="refresh" method="POST" action="/refresh">
+    <input type="hidden" name="x" value="{{ xsrf.refresh }}">
+    <input type="submit" value="refresh data">
+  </form>
+</div>
+{% endblock %}

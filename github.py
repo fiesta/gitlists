@@ -1,7 +1,8 @@
-"""Interacting with the Github API."""
-
+import json
 import urllib
 import urlparse
+
+import flask
 
 import settings
 
@@ -17,4 +18,23 @@ def token_for_code(code):
                                "client_secret": settings.gh_secret,
                                "code": code})
     response = urlparse.parse_qs(urllib.urlopen(url, params).read())
-    return response["access_token"]
+    return response.get("access_token", [None])[0]
+
+
+def make_request(u):
+    u = "https://api.github.com%s?access_token=%s" % (u, flask.session["t"])
+    return json.load(urllib.urlopen(u))
+
+
+def user_info():
+    return make_request("/user")
+
+
+def repos(org=None):
+    if org:
+        return make_request("/orgs/%s/repos" % org)
+    return make_request("/user/repos")
+
+
+def orgs():
+    return make_request("/user/orgs")
