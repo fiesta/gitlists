@@ -62,74 +62,6 @@ def check_xsrf(action, timeout=60*60):
     return decorator(check_xsrf)
 
 
-@app.route("/")
-def index():
-    if "t" in flask.session:
-        user = "i" in flask.session and db.user(flask.session["i"])
-        return flask.render_template("index_logged_in.html",
-                                     user=user, **gen_xsrf(["refresh"]))
-    return flask.render_template("index.html")
-
-
-def repo_page(user, repos, name, org=None):
-    repo = None
-    for r in repos:
-        if r["name"] == name:
-            repo = r
-    if not repo:
-        return flask.abort(404, "No matching repo")
-
-    return flask.render_template("repo.html", user=user,
-                                 repo=repo, org=org,
-                                 **gen_xsrf(["refresh_repo", "create"]))
-
-
-@app.route("/repo/<name>")
-def repo(name):
-    user = "i" in flask.session and db.user(flask.session["i"])
-    if not user:
-        return flask.abort(403, "No user")
-
-    return repo_page(user, user["repos"], name)
-
-
-@app.route("/repo/<org_handle>/<name>")
-def org_repo(org_handle, name):
-    user = "i" in flask.session and db.user(flask.session["i"])
-    if not user:
-        return flask.abort(403, "No user")
-
-    for org in user["orgs"]:
-        if org["handle"] == org_handle:
-            return repo_page(user, org["repos"], name, org)
-
-    return flask.abort(404, "No matching org")
-
-
-def repo_data(name, org=None):
-    try:
-        user = db.user(flask.session["i"])
-    except:
-        pass
-
-    if not user:
-        return flask.abort(403, "no user")
-
-    if org:
-        repo = user["orgs"]
-
-
-@app.route("/repo_data/<name>")
-def repo_data(name):
-    return repo_data(name)
-
-
-@app.route("/repo_data/<org_handle>/<name>")
-def org_repo_data(org_handle, name):
-    return repo_data(name, org_handle)
-
-
-@app.route("/user_data")
 def user_data():
     try:
         user = db.user(flask.session["i"])
@@ -158,15 +90,85 @@ def user_data():
         org = {"id": org["id"],
                "handle": org["login"],
                "avatar": org["avatar_url"],
-               "repos": [],
-               "members": github.members(org=org["login"])}
+               "repos": []}
         for repo in github.repos(org=org["handle"]):
             org["repos"].append({"name": repo["name"],
                                  "description": repo["description"]})
         doc["orgs"].append(org)
 
     db.user(user["id"], doc)
-    return json.dumps(doc)
+    return doc
+
+
+@app.route("/")
+def index():
+    if "t" in flask.session:
+        user = "i" in flask.session and db.user(flask.session["i"])
+        if not user:
+            user = user_data()
+        return flask.render_template("index_logged_in.html",
+                                     user=user, **gen_xsrf(["refresh"]))
+    return flask.render_template("index.html")
+
+
+def repo_data(user, repo, name, org=None):
+    username = org and org["handle"] or user["handle"]
+
+    collaborators = github.collaborators(name, username)
+    repo["collaborators"] = collaborators
+
+    contributors = github.contributors(name, username)
+    repo["contributors"] = contributors
+
+    forkers = github.forkers(name, username)
+    repo["forkers"] = forkers
+
+    watchers = github.watchers(name, username)
+    repo["watchers"] = watchers
+
+    if org:
+        org_members = github.members(org["handle"])
+        repo["org_members"] = org_members
+
+    db.user(user["_id"], user)
+
+
+def repo_page(user, repos, name, org=None):
+    repo = None
+    for r in repos:
+        if r["name"] == name:
+            repo = r
+    if not repo:
+        return flask.abort(404, "No matching repo")
+
+    if "collaborators" not in repo:
+        repo_data(user, repo, name, org)
+
+    return flask.render_template("repo.html", user=user,
+                                 repo=repo, org=org,
+                                 **gen_xsrf(["refresh_repo", "create"]))
+
+
+@app.route("/repo/<name>")
+def repo(name):
+    user = "i" in flask.session and db.user(flask.session["i"])
+    if not user:
+        return flask.abort(403, "No user")
+
+    return repo_page(user, user["repos"], name)
+
+
+@app.route("/repo/<org_handle>/<name>")
+def org_repo(org_handle, name):
+    user = "i" in flask.session and db.user(flask.session["i"])
+    if not user:
+        return flask.abort(403, "No user")
+
+    for org in user["orgs"]:
+        if org["handle"] == org_handle:
+            return repo_page(user, org["repos"], name, org)
+
+    return flask.abort(404, "No matching org")
 
 
 @app.route("/refresh", methods=["POST"])
@@ -175,6 +177,12 @@ def refresh():
     if "i" in flask.session:
         db.delete_user(flask.session["i"])
     return flask.redirect("/")
+
+
+@app.route("/refresh_repo", methods=["POST"])
+@check_xsrf("refresh_repo")
+def refresh_repo():
+    raise errors.TODO("delete repo info")
 
 
 @app.route("/auth/request")

@@ -36,6 +36,34 @@ def repos(org=None):
     return make_request("/user/repos")
 
 
+def collaborators(name, user):
+    c = make_request("/repos/%s/%s/collaborators" % (user, name))
+    if not c or isinstance(c, dict):
+        return []
+    return c
+
+
+def contributors(name, user):
+    c = make_request("/repos/%s/%s/contributors" % (user, name))
+    if not c or isinstance(c, dict):
+        return []
+    return c
+
+
+def forkers(name, user):
+    forks = make_request("/repos/%s/%s/forks" % (user, name))
+    if not forks or isinstance(forks, dict):
+        return []
+    return [f["owner"] for f in forks]
+
+
+def watchers(name, user):
+    c = make_request("/repos/%s/%s/watchers" % (user, name))
+    if not c or isinstance(c, dict):
+        return []
+    return c
+
+
 def orgs():
     return make_request("/user/orgs")
 

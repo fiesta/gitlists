@@ -1,48 +1,42 @@
 {% extends "base.html" %}
 
-{% block scripts %}
-{% if not repo.members %}
-<script type="text/javascript">
-var repo_url = "{% if org %}/{{ org.handle }}{% endif %}/{{ repo.name }}";
-jQuery(loadRepoData);
-</script>
-{% endif %}
-{% endblock %}
-
 {% block content %}
 <h1>Creating {{ repo.name }}@gitlists.com</h1>
-{% if not repo.members %}
-<div class="no-repo">
-  <h2>Collecting repo info from Github<span class="loading-bar"></span></h2>
-</div>
-{% endif %}
-
-<div class="yes-repo" {% if not repo.members %}style="display: none;"{% endif %}>
-  <h2>Who is on the list?</h2>
-  <form name="create" method="POST" action="/create">
-    <div class=".repo-members">
-      {% if repo.members %}
-      {% if repo.members.contributors %}
-      <h3>Contributors</h3>
-      {% for member in repo.members.contributors %}
-      <p><input type="checkbox" name="userid" value="{{ member.id }}" checked="checked"> {{ member.login }} [<a href="http://github.com/{{ member.login }}">github</a>]</p>
-      {% endfor %}
-      {% endif %}
-      {% endif %}
-    </div>
-    {% if org %}
-    <h3>{{ org.handle }} members</h3>
-    {% for member in org.members %}
-    <p><input type="checkbox" name="userid" value="{{ member.id }}"> {{ member.login }} [<a href="http://github.com/{{ member.login }}">github</a>]</p>
-    {% endfor %}
-    {% endif %}
-    <input type="hidden" name="x" value="{{ xsrf.create }}">
-    <p><input type="submit" value="create your list!"></p>
-  </form>
-
-  <form name="refresh-repo" method="POST" action="/refresh_repo">
-    <input type="hidden" name="x" value="{{ xsrf.refresh_repo }}">
-    <input type="submit" value="refresh data">
-  </form>
-</div>
+<h2>Who is on the list?</h2>
+<form name="refresh-repo" method="POST" action="/refresh_repo">
+  <input type="hidden" name="x" value="{{ xsrf.refresh_repo }}">
+  <input type="hidden" name="repo" value="{{ repo.name }}">
+  {% if org %}
+  <input type="hidden" name="org" value="{{ org.handle }}">
+  {% endif %}
+  <input type="submit" value="refresh data">
+</form>
+<form name="create" method="POST" action="/create">
+  {% if repo.collaborators %}
+  <h3>Collaborators</h3>
+  {% for member in repo.collaborators %}
+  <p><input type="checkbox" name="userid" value="{{ member.id }}" checked="checked"> {{ member.login }} [<a href="http://github.com/{{ member.login }}">github</a>]</p>
+  {% endfor %}
+  {% endif %}
+  {% if repo.contributors %}
+  <h3>Contributors</h3>
+  {% for member in repo.contributors %}
+  <p><input type="checkbox" name="userid" value="{{ member.id }}" checked="checked"> {{ member.login }} [<a href="http://github.com/{{ member.login }}">github</a>]</p>
+  {% endfor %}
+  {% endif %}
+  {% if repo.forkers %}
+  <h3>Forkers</h3>
+  {% for member in repo.forkers %}
+  <p><input type="checkbox" name="userid" value="{{ member.id }}"> {{ member.login }} [<a href="http://github.com/{{ member.login }}">github</a>]</p>
+  {% endfor %}
+  {% endif %}
+  {% if repo.org_members %}
+  <h3>{{ org.handle }} members</h3>
+  {% for member in repo.org_members %}
+  <p><input type="checkbox" name="userid" value="{{ member.id }}"> {{ member.login }} [<a href="http://github.com/{{ member.login }}">github</a>]</p>
+  {% endfor %}
+  {% endif %}
+  <input type="hidden" name="x" value="{{ xsrf.create }}">
+  <p><input type="submit" value="create your list!"></p>
+</form>
 {% endblock %}
