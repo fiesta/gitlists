@@ -61,7 +61,7 @@ def forkers(user, name, ignore):
     forks = make_request("/repos/%s/%s/forks" % (user, name), True)
     if not forks or isinstance(forks, dict):
         return []
-    return filtered([f["owner"] for f in forks])
+    return filtered([f["owner"] for f in forks], ignore)
 
 
 def watchers(user, name, ignore):

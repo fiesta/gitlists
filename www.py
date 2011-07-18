@@ -127,6 +127,7 @@ def repo_data(user, repo, name, org=None):
 
     if org:
         org_members = github.members(org["handle"], ignore)
+        ignore.update([x["l"] for x in org_members])
         repo["org_members"] = org_members
 
     repo["forkers"] = query(github.forkers)
@@ -146,7 +147,20 @@ def repo_page(user, repos, name, org=None):
     if "collaborators" not in repo:
         repo_data(user, repo, name, org)
 
-    return flask.render_template("repo.html", user=user,
+    n = 0
+    opts = ["collaborators", "contributors", "forkers", "watchers"]
+    if org:
+        opts += ["org_members"]
+    for k in opts:
+        if repo[k]:
+            n += 1
+
+    if n == 1:
+        n = "1"
+    elif n:
+        n = "1-%s" % n
+
+    return flask.render_template("repo.html", user=user, n=n,
                                  repo=repo, org=org,
                                  **gen_xsrf(["refresh_repo", "create"]))
 
