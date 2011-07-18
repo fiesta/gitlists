@@ -38,3 +38,7 @@ def repos(org=None):
 
 def orgs():
     return make_request("/user/orgs")
+
+
+def members(org):
+    return make_request("/orgs/%s/members" % org)

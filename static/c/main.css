@@ -1,7 +1,6 @@
 body {
-    font-size: 108%;
-    font-family: monospace;
-    padding: 1em;
+    font-family: Consolas, "Bitstream Vera Sans Mono", "Andale Mono", Monaco, "DejaVu Sans Mono", "Lucida Console", monospace;
+    padding: 1.5em 3em;
     letter-spacing: 0.1em;
 }
 ul li {
@@ -9,4 +8,7 @@ ul li {
 }
 #f {
     padding-top: 1em;
+}
+#copy {
+    float: right;
 }

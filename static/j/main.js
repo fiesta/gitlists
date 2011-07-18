@@ -50,6 +50,25 @@ function loadUserData() {
     });
 }
 
+function loadRepoData() {
+    jQuery.ajax({
+        url: "/repo_data" + repo_url,
+        dataType: "json",
+        success: function(data) {
+            jQuery(".no-repo").hide();
+            jQuery(".repo-members").html();
+            for(var i in data) {
+                jQuery(".repo-members").append(jQuery("<h3>" + i + "</h3>"));
+                for(var j = 0; j < data[i].length; j += 1) {
+                    var member = data[i][j];
+                    jQuery(".repo-members").append("<p><input type='checkbox' name='userid' value='" + member["id"] + "' checked='checked'> " + member["login"] + " [<a href='http://github.com/" + member["login"] +"'>github</a>]</p>");
+                }
+            }
+            jQuery(".yes-repo").show();
+        }
+    });
+}
+
 jQuery(function() {
     loadingBars();
 });

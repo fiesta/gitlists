@@ -81,7 +81,7 @@ def repo_page(user, repos, name, org=None):
 
     return flask.render_template("repo.html", user=user,
                                  repo=repo, org=org,
-                                 **gen_xsrf(["refresh"]))
+                                 **gen_xsrf(["refresh_repo", "create"]))
 
 
 @app.route("/repo/<name>")
@@ -101,9 +101,32 @@ def org_repo(org_handle, name):
 
     for org in user["orgs"]:
         if org["handle"] == org_handle:
-            return repo_page(user, org["repos"], name, org_handle)
+            return repo_page(user, org["repos"], name, org)
 
     return flask.abort(404, "No matching org")
+
+
+def repo_data(name, org=None):
+    try:
+        user = db.user(flask.session["i"])
+    except:
+        pass
+
+    if not user:
+        return flask.abort(403, "no user")
+
+    if org:
+        repo = user["orgs"]
+
+
+@app.route("/repo_data/<name>")
+def repo_data(name):
+    return repo_data(name)
+
+
+@app.route("/repo_data/<org_handle>/<name>")
+def org_repo_data(org_handle, name):
+    return repo_data(name, org_handle)
 
 
 @app.route("/user_data")
@@ -135,7 +158,8 @@ def user_data():
         org = {"id": org["id"],
                "handle": org["login"],
                "avatar": org["avatar_url"],
-               "repos": []}
+               "repos": [],
+               "members": github.members(org=org["login"])}
         for repo in github.repos(org=org["handle"]):
             org["repos"].append({"name": repo["name"],
                                  "description": repo["description"]})
