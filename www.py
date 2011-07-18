@@ -114,21 +114,23 @@ def index():
 def repo_data(user, repo, name, org=None):
     username = org and org["handle"] or user["handle"]
 
-    collaborators = github.collaborators(name, username)
-    repo["collaborators"] = collaborators
+    ignore = set([user["handle"], "invalid-email-address"])
 
-    contributors = github.contributors(name, username)
-    repo["contributors"] = contributors
+    def query(function):
+        result = function(username, name, ignore)
+        ignore.update([x["l"] for x in result])
+        return result
 
-    forkers = github.forkers(name, username)
-    repo["forkers"] = forkers
-
-    watchers = github.watchers(name, username)
-    repo["watchers"] = watchers
+    # Note that order of these calls matters as we are updating `ignore`.
+    repo["collaborators"] = query(github.collaborators)
+    repo["contributors"] = query(github.contributors)
 
     if org:
-        org_members = github.members(org["handle"])
+        org_members = github.members(org["handle"], ignore)
         repo["org_members"] = org_members
+
+    repo["forkers"] = query(github.forkers)
+    repo["watchers"] = query(github.watchers)
 
     db.user(user["_id"], user)
 
@@ -139,7 +141,7 @@ def repo_page(user, repos, name, org=None):
         if r["name"] == name:
             repo = r
     if not repo:
-        return flask.abort(404, "No matching repo")
+        return flaswwk.abort(404, "No matching repo")
 
     if "collaborators" not in repo:
         repo_data(user, repo, name, org)

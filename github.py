@@ -21,8 +21,10 @@ def token_for_code(code):
     return response.get("access_token", [None])[0]
 
 
-def make_request(u):
+def make_request(u, big=False):
     u = "https://api.github.com%s?access_token=%s" % (u, flask.session["t"])
+    if big:
+        u += "&per_page=100"
     return json.load(urllib.urlopen(u))
 
 
@@ -36,37 +38,39 @@ def repos(org=None):
     return make_request("/user/repos")
 
 
-def collaborators(name, user):
-    c = make_request("/repos/%s/%s/collaborators" % (user, name))
+def filtered(c, i):
+    return [{"l": x["login"], "i": x["id"]} for x in c if x["login"] not in i]
+
+
+def user_list(url, ignore):
+    c = make_request(url, True)
     if not c or isinstance(c, dict):
         return []
-    return c
+    return filtered(c, ignore)
 
 
-def contributors(name, user):
-    c = make_request("/repos/%s/%s/contributors" % (user, name))
-    if not c or isinstance(c, dict):
-        return []
-    return c
+def collaborators(user, name, ignore):
+    return user_list("/repos/%s/%s/collaborators" % (user, name), ignore)
 
 
-def forkers(name, user):
-    forks = make_request("/repos/%s/%s/forks" % (user, name))
+def contributors(user, name, ignore):
+    return user_list("/repos/%s/%s/contributors" % (user, name), ignore)
+
+
+def forkers(user, name, ignore):
+    forks = make_request("/repos/%s/%s/forks" % (user, name), True)
     if not forks or isinstance(forks, dict):
         return []
-    return [f["owner"] for f in forks]
+    return filtered([f["owner"] for f in forks])
 
 
-def watchers(name, user):
-    c = make_request("/repos/%s/%s/watchers" % (user, name))
-    if not c or isinstance(c, dict):
-        return []
-    return c
+def watchers(user, name, ignore):
+    return user_list("/repos/%s/%s/watchers" % (user, name), ignore)
 
 
 def orgs():
     return make_request("/user/orgs")
 
 
-def members(org):
-    return make_request("/orgs/%s/members" % org)
+def members(org, ignore):
+    return filtered(make_request("/orgs/%s/members" % org, True), ignore)
