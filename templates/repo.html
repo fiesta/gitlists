@@ -8,7 +8,7 @@
   {% if org %}
   <input type="hidden" name="org" value="{{ org.handle }}">
   {% endif %}
-  <h2>Select list members and create your list.<input type="submit" value="refresh data"></h2>
+  <h2>Select list members and create your gitlist. You can add or remove members later, too.<input type="submit" value="refresh data"></h2>
 </form>
 <hr>
 <form name="create" method="POST" action="/create">
@@ -57,10 +57,10 @@
   <h3>Other list members</h3>
   <p>Enter <span class="freeform-text">an email address</span>. <a class="add_input" href="#">Click here</a> to add another input.</p>
   <div class="freeform">
-    <p><input type="text" name="userid"></p>
+    <p><input type="text" name="address"></p>
   </div>
   <input type="hidden" name="x" value="{{ xsrf.create }}">
-  <h3>Create your list</h3>
-  <div><input class="create" type="submit" value="create list"><- Click here to finish creating your list - an introductory email will be sent to the list members.</div>
+  <h3>Create your gitlist</h3>
+  <div><input class="create" type="submit" value="create list"><- Click here to finish creating your gitlist - an introductory email will be sent to the list members.</div>
 </form>
 {% endblock %}

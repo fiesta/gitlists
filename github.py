@@ -50,6 +50,7 @@ def user_list(url, ignore):
 
 
 def collaborators(user, name, ignore):
+    # TODO this call doesn't seem to be working for some reason...
     return user_list("/repos/%s/%s/collaborators" % (user, name), ignore)
 
 

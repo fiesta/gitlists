@@ -187,6 +187,12 @@ def org_repo(org_handle, name):
     return flask.abort(404, "No matching org")
 
 
+@app.route("/create", methods=["POST"])
+@check_xsrf("create")
+def create():
+    return repr(flask.request.form)
+
+
 @app.route("/refresh", methods=["POST"])
 @check_xsrf("refresh")
 def refresh():
@@ -213,6 +219,11 @@ def auth_response():
     if token:
         flask.session["t"] = token
     return flask.redirect("/")
+
+
+@app.route("/favicon.ico")
+def favicon():
+    return app.send_static_file("i/favicon.ico")
 
 
 if __name__ == '__main__':

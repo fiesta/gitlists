@@ -1,6 +1,6 @@
 jQuery(function() {
     jQuery(".add_input").click(function() {
-        jQuery(".freeform").append(jQuery("<p><input type='text' name='userid'></p>"));
+        jQuery(".freeform").append(jQuery("<p><input type='text' name='address'></p>"));
         jQuery(".freeform-text").html("email addresses");
         return false;
     });
