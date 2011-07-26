@@ -7,6 +7,10 @@ import flask
 import settings
 
 
+class Reauthorize(Exception):
+    pass
+
+
 def auth_url():
     url = "https://github.com/login/oauth/authorize"
     return url + "?client_id=" + settings.gh_client_id
@@ -25,7 +29,13 @@ def make_request(u, big=False):
     u = "https://api.github.com%s?access_token=%s" % (u, flask.session["t"])
     if big:
         u += "&per_page=100"
-    return json.load(urllib.urlopen(u))
+    try:
+        return json.load(urllib.urlopen(u))
+    except IOError, e:
+        if e.args[1] == 401:
+            raise Reauthorize("Got a 401...")
+        else:
+            raise
 
 
 def user_info():

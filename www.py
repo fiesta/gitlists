@@ -15,10 +15,6 @@ app = flask.Flask(__name__)
 app.secret_key = settings.session_key
 
 
-def flash(message):
-    raise errors.TODO("flash")
-
-
 def _gen_xsrf(action):
     return sign.sign(action + flask.session["t"])
 
@@ -56,7 +52,7 @@ def check_xsrf(action, timeout=60*60):
         if status == sign.BAD:
             return flask.abort(403, "Bad XSRF token.")
         elif status == sign.TIMEOUT:
-            flash("Your session timed out, please try again.")
+            flask.flash("Your session timed out, please try again.")
             return flask.redirect(flask.request.headers.get("REFERER", "/"))
         return view(*args, **kwargs)
     return decorator(check_xsrf)
@@ -105,9 +101,14 @@ def index():
     if "t" in flask.session:
         user = "i" in flask.session and db.user(flask.session["i"])
         if not user:
-            user = user_data()
+            try:
+                user = user_data()
+            except github.Reauthorize:
+                del flask.session["t"]
+                del flask.session["i"]
+                return flask.redirect("/")
         return flask.render_template("index_logged_in.html",
-                                     user=user, **gen_xsrf(["refresh"]))
+                                     user=user, **gen_xsrf(["refresh", "logout"]))
     return flask.render_template("index.html")
 
 
@@ -145,7 +146,12 @@ def repo_page(user, repos, name, org=None):
         return flaswwk.abort(404, "No matching repo")
 
     if "collaborators" not in repo:
-        repo_data(user, repo, name, org)
+        try:
+            repo_data(user, repo, name, org)
+        except github.Reauthorize:
+            del flask.session["t"]
+            del flask.session["i"]
+            redirect("/")
 
     n = 0
     opts = ["collaborators", "contributors", "forkers", "watchers"]
@@ -162,7 +168,7 @@ def repo_page(user, repos, name, org=None):
 
     return flask.render_template("repo.html", user=user, n=n,
                                  repo=repo, org=org,
-                                 **gen_xsrf(["refresh_repo", "create"]))
+                                 **gen_xsrf(["refresh_repo", "create", "logout"]))
 
 
 @app.route("/repo/<name>")
@@ -185,6 +191,14 @@ def org_repo(org_handle, name):
             return repo_page(user, org["repos"], name, org)
 
     return flask.abort(404, "No matching org")
+
+
+@app.route("/logout", methods=["POST"])
+@check_xsrf("logout")
+def logout():
+    del flask.session["t"]
+    del flask.session["i"]
+    return flask.redirect("/")
 
 
 @app.route("/create", methods=["POST"])

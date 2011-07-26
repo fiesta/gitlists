@@ -10,6 +10,14 @@
     {% block scripts %}{% endblock %}
   </head>
   <body>
+    {% if xsrf and xsrf.logout %}
+    <div id="h">
+      <form id="logout" method="POST" action="/logout">
+        <input type="hidden" name="x" value="{{ xsrf.logout }}">
+        <input type="submit" value="Log out">
+      </form>
+    </div>
+    {% endif %}
     {% block content %}{% endblock %}
     <div id="f">
       <hr>
