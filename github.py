@@ -49,7 +49,7 @@ def repos(org=None):
 
 
 def filtered(c, i):
-    return [{"l": x["login"], "i": x["id"]} for x in c if x["login"] not in i]
+    return [x["login"] for x in c if x["login"] not in i]
 
 
 def user_list(url, ignore):

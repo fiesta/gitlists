@@ -6,6 +6,7 @@ import flask
 import db
 import github
 import errors
+import fiesta
 import json
 import settings
 import sign
@@ -119,7 +120,7 @@ def repo_data(user, repo, name, org=None):
 
     def query(function):
         result = function(username, name, ignore)
-        ignore.update([x["l"] for x in result])
+        ignore.update(result)
         return result
 
     # Note that order of these calls matters as we are updating `ignore`.
@@ -201,9 +202,43 @@ def logout():
     return flask.redirect("/")
 
 
+def valid_email(e):
+    """Just basic safety"""
+    lcl, _, host = e.partition("@")
+    if not lcl or not host or "@" in host or "." not in host:
+        return False
+    for char in "()[]\;:,<>":
+        if char in e:
+            return False
+    return True
+
+
+def repo_url(repo, org=None):
+    return "/repo/%s%s" % (org and org + "/" or "", repo)
+
+
 @app.route("/create", methods=["POST"])
 @check_xsrf("create")
 def create():
+    email = "i" in flask.session and db.email(flask.session["i"])
+    if not email:
+        return flask.abort(403, "No email")
+
+    repo = flask.request.form.get("repo")
+    org = flask.request.form.get("org")
+    usernames = flask.request.form.getlist("username")
+    addresses = flask.request.form.getlist("address")
+    addresses = [a for a in addresses if valid_email(a)]
+
+    if not addresses and not usernames:
+        flask.flash("Please select some list members before creating your list.")
+        return flask.redirect(repo_url(repo, org))
+
+    # Existing fiesta user - we'll need to three-legged auth.
+ #   if fiesta.address(email):
+        
+
+#    return repr(fiesta.address(email))
     return repr(flask.request.form)
 
 

@@ -17,7 +17,7 @@
   <div class="yui3-u-{{ n }}">
     <h3>Collaborators</h3>
   {% for member in repo.collaborators %}
-  <p><input type="checkbox" name="userid" value="{{ member.i }}" checked="checked"><span class="uname">{{ member.l }}</span>[<a href="http://github.com/{{ member.l }}">github</a>]</p>
+  <p><input type="checkbox" name="username" value="{{ member }}" checked="checked"><span class="uname">{{ member }}</span>[<a href="http://github.com/{{ member }}">github</a>]</p>
   {% endfor %}
   </div>
   {% endif %}
@@ -25,7 +25,7 @@
   <div class="yui3-u-{{ n }}">
   <h3>Contributors</h3>
   {% for member in repo.contributors %}
-  <p><input type="checkbox" name="userid" value="{{ member.i }}" checked="checked"><span class="uname">{{ member.l }}</span>[<a href="http://github.com/{{ member.l }}">github</a>]</p>
+  <p><input type="checkbox" name="username" value="{{ member }}" checked="checked"><span class="uname">{{ member }}</span>[<a href="http://github.com/{{ member }}">github</a>]</p>
   {% endfor %}
   </div>
   {% endif %}
@@ -33,7 +33,7 @@
   <div class="yui3-u-{{ n }}">
   <h3>{{ org.handle }} members</h3>
   {% for member in repo.org_members %}
-  <p><input type="checkbox" name="userid" value="{{ member.i }}"><span class="uname">{{ member.l }}</span>[<a href="http://github.com/{{ member.l }}">github</a>]</p>
+  <p><input type="checkbox" name="username" value="{{ member }}"><span class="uname">{{ member }}</span>[<a href="http://github.com/{{ member }}">github</a>]</p>
   {% endfor %}
   </div>
   {% endif %}
@@ -41,7 +41,7 @@
   <div class="yui3-u-{{ n }}">
   <h3>Forkers</h3>
   {% for member in repo.forkers[:50] %}
-  <p><input type="checkbox" name="userid" value="{{ member.i }}"><span class="uname">{{ member.l }}</span>[<a href="http://github.com/{{ member.l }}">github</a>]</p>
+  <p><input type="checkbox" name="username" value="{{ member }}"><span class="uname">{{ member }}</span>[<a href="http://github.com/{{ member }}">github</a>]</p>
   {% endfor %}
   </div>
   {% endif %}
@@ -49,7 +49,7 @@
   <div class="yui3-u-{{ n }}">
   <h3>Watchers</h3>
   {% for member in repo.watchers[:50] %}
-  <p><input type="checkbox" name="userid" value="{{ member.i }}"><span class="uname">{{ member.l }}</span>[<a href="http://github.com/{{ member.l }}">github</a>]</p>
+  <p><input type="checkbox" name="username" value="{{ member }}"><span class="uname">{{ member }}</span>[<a href="http://github.com/{{ member }}">github</a>]</p>
   {% endfor %}
   </div>
   {% endif %}
@@ -59,6 +59,10 @@
   <div class="freeform">
     <p><input type="text" name="address"></p>
   </div>
+  <input type="hidden" name="repo" value="{{ repo.name }}">
+  {% if org %}
+  <input type="hidden" name="org" value="{{ org.handle }}">
+  {% endif %}
   <input type="hidden" name="x" value="{{ xsrf.create }}">
   <h3>Create your gitlist</h3>
   <div><input class="create" type="submit" value="create list"><- Click here to finish creating your gitlist - an introductory email will be sent to the list members.</div>

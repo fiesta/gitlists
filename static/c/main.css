@@ -35,3 +35,11 @@ h2 input {
 #logout {
     float: right;
 }
+.flashes {
+    margin: 0 0;
+}
+.flashes li {
+    list-style: none;
+    color: #B00;
+    font-size: 16px;
+}

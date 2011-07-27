@@ -2,7 +2,7 @@
 <html>
   <head>
     <meta http-equiv="Content-type" content="text/html;charset=UTF-8">
-    <title>gitlists - free mailing lists for your github collaborators</title>
+    <title>Gitlists - free mailing lists for your github collaborators</title>
     <link rel="stylesheet" type="text/css" href="/static/c/yui.css">
     <link rel="stylesheet" type="text/css" href="/static/c/main.css">
     <script src="/static/j/jquery.min.js" type="text/javascript" charset="utf-8"></script>
@@ -18,6 +18,15 @@
       </form>
     </div>
     {% endif %}
+    {% with messages = get_flashed_messages() %}
+    {% if messages %}
+    <ul class="flashes">
+      {% for message in messages %}
+      <li>{{ message }}</li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+    {% endwith %}
     {% block content %}{% endblock %}
     <div id="f">
       <hr>
