@@ -110,7 +110,8 @@ def index():
                 return flask.redirect("/")
         return flask.render_template("index_logged_in.html",
                                      user=user, **gen_xsrf(["refresh", "logout"]))
-    return flask.render_template("index.html")
+    return flask.render_template("index.html",
+                                 github_auth_url=github.auth_url())
 
 
 def repo_data(user, repo, name, org=None):
@@ -217,10 +218,15 @@ def repo_url(repo, org=None):
     return "/repo/%s%s" % (org and org + "/" or "", repo)
 
 
+def _create(github_id, usernames, addresses, repo, org):
+    return "hello world"
+
+
 @app.route("/create", methods=["POST"])
 @check_xsrf("create")
 def create():
-    email = "i" in flask.session and db.email(flask.session["i"])
+    github_id = flask.session.get("i", None)
+    email = github_id and db.email(github_id)
     if not email:
         return flask.abort(403, "No email")
 
@@ -234,12 +240,34 @@ def create():
         flask.flash("Please select some list members before creating your list.")
         return flask.redirect(repo_url(repo, org))
 
-    # Existing fiesta user - we'll need to three-legged auth.
- #   if fiesta.address(email):
-        
+    if not fiesta.address(email) or "oauth_token" in db.user(flask.session["i"]):
+        try:
+            return _create(github_id, usernames, addresses, repo, org)
+        except:
+            pass
 
-#    return repr(fiesta.address(email))
-    return repr(flask.request.form)
+    creds = fiesta.temporary_credentials(flask.request.url_root + "authcreate")
+    db.pending_create(creds, github_id, usernames, addresses, repo, org)
+    return flask.redirect(fiesta.authorize_url(creds))
+
+
+@app.route("/authcreate")
+def authcreate():
+    id = flask.request.args.get("oauth_token")
+    verifier = flask.request.args.get("oauth_verifier")
+    pending = db.get_pending(id)
+    if not id or not verifier or not pending:
+        flask.flash("Authentication failed, please try again.")
+        return flask.redirect("/")
+    temp = {"oauth_token": id, "oauth_token_secret": pending["secret"]}
+    token = fiesta.token(temp, verifier)
+    if not token:
+        flask.flash("Authentication failed, please try again.")
+        return flask.redirect("/")
+    db.add_fiesta_token(pending["creator_id"], token)
+    db.delete_pending(id)
+    return _create(pending["creator_id"], pending["usernames"],
+                   pending["addresses"], pending["repo"], pending["org"])
 
 
 @app.route("/refresh", methods=["POST"])
@@ -254,11 +282,6 @@ def refresh():
 @check_xsrf("refresh_repo")
 def refresh_repo():
     raise errors.TODO("delete repo info")
-
-
-@app.route("/auth/request")
-def auth_request():
-    return flask.redirect(github.auth_url())
 
 
 @app.route("/auth/response")

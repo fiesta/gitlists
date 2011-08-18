@@ -1,6 +1,7 @@
 import json
 import urllib
 import urllib2
+import urlparse
 
 import settings
 
@@ -35,6 +36,21 @@ def json_request(url, data=None, *args, **kwargs):
     if data:
         data = json.dumps(data)
     return json.loads(request(url, data, *args, **kwargs))
+
+
+def temporary_credentials(c):
+    return dict(urlparse.parse_qsl(request("oauth/initiate", callback=c)))
+
+
+def authorize_url(credentials):
+    url = "https://fiesta.cc/authorize?oauth_token=%s"
+    return url % credentials["oauth_token"]
+
+
+def token(temp_creds, verifier):
+    return dict(urlparse.parse_qsl(request("oauth/token",
+                                           token=temp_creds,
+                                           verifier=verifier)))
 
 
 def address(email):
