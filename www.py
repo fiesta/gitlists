@@ -194,15 +194,15 @@ def create_post():
         flask.flash("Please select some list members before creating your list.")
         return flask.redirect(repo_url(repo, org))
 
-    repo_url = "https://github.com/%s/%s." % (org or user["login"], repo)
-    description = "Gitlist for " + repo_url
+    github_url = "https://github.com/%s/%s" % (org or user["login"], repo)
+    description = "Gitlist for " + github_url
     welcome_message = {"subject": "Welcome to %s@gitlists.com" % repo,
                        "markdown": """
 [%s](%s) added you to a Gitlist for [%s](%s). Gitlists are dead-simple mailing lists for Github projects. You can create your own at [gitlists.com](https://gitlists.com).
 
 Use %s@gitlists.com to email the list. Use the "List members" link below to see, add or remove list members. Use the "Unsubscribe" link below if you don't want to receive any messages from this list.
 """ % (user["login"], "http://github.com/" + user["login"],
-       repo, repo_url,
+       repo, github_url,
        repo)}
 
     creator = {"group_name": repo,
@@ -213,13 +213,13 @@ Use %s@gitlists.com to email the list. Use the "List members" link below to see,
                                               "domain": "gitlists.com",
                                               "description": description})
     pending = response["status"]["code"] == 202
-    members = response["data"]["members"]
     group_id = response["data"]["group_id"]
 
     for address in addresses:
-        fiesta.json_request(members, {"group_name": repo,
-                                      "address": address,
-                                      "welcome_message": welcome_message})
+        data =  {"group_name": repo,
+                 "address": address,
+                 "welcome_message": welcome_message}
+        fiesta.json_request("/membership/" + group_id, data)
 
     for username in usernames:
         member_user = github.user(username)

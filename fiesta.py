@@ -21,11 +21,12 @@ def authorized(view, *args, **kwargs):
     try:
         return view(*args, **kwargs)
     except Reauthorize:
+        del flask.session["f"]
         return flask.redirect(auth_url(flask.request.url))
 
 
 def auth_url(next):
-    return "https://fiesta.cc/authorize?response_type=code&scope=create&client_id=%s&state=%s" % \
+    return "https://fiesta.cc/authorize?response_type=code&scope=create%%20modify&client_id=%s&state=%s" % \
         (settings.fiesta_id, urllib.quote(next))
 
 
