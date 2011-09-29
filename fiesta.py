@@ -1,35 +1,76 @@
+import base64
 import json
 import urllib
 import urllib2
 import urlparse
 
+import decorator
+
 import settings
 
 
-def _auth(callback=None, token=None, verifier=None):
-    token_secret = token and token["oauth_token_secret"] or ""
-    signature = "%s&%s" % (settings.fiesta_secret, token_secret)
-    params = {"oauth_consumer_key": settings.fiesta_client_id,
-              "oauth_signature_method": "PLAINTEXT",
-              "oauth_signature": signature,
-              "oauth_version": "1.0"}
-    if callback:
-        params["oauth_callback"] = callback
-    if token:
-        params["oauth_token"] = token["oauth_token"]
-    if verifier:
-        params["oauth_verifier"] = verifier
+class Reauthorize(Exception):
+    pass
 
-    authorization = 'OAuth realm="https://api.fiesta.cc/", '
-    p = lambda k, v: '%s="%s"' % (k, urllib.quote(str(v)))
-    return authorization + ", ".join([p(k,v) for k,v in params.iteritems()])
+
+CLIENT_TOKEN = None
+
+
+def auth_url():
+    return "https://fiesta.cc/authorize?client_id=" + settings.fiesta_id
+
+
+def auth_request(url):
+    userpass = settings.fiesta_id + ":" + settings.fiesta_secret
+    auth = "Basic " + base64.b64encode(userpass)
+    req = urllib2.Request(url)
+    req.add_header("Authorization", auth)
+    return req
+
+
+def get_client_token():
+    global CLIENT_TOKEN
+    req = auth_request("https://api.fiesta.cc/token")
+    data = {"grant_type": "client_credentials"}
+    res = urllib2.urlopen(req, urllib.urlencode(data))
+    CLIENT_TOKEN = json.load(res)["access_token"]
+
+
+def get_user_token(code):
+    req = auth_request("https://api.fiesta.cc/token")
+    data = {"grant_type": "authorization_code", "code": code}
+    return json.load(urllib2.urlopen(req, data))["access_token"]
+
+
+@decorator.decorator
+def with_client_token(method, *args, **kwargs):
+    if not CLIENT_TOKEN:
+        get_client_token()
+    try:
+        return method(*args, **kwargs)
+    except Reauthorize:
+        get_client_token()
+        return method(*args, **kwargs)
 
 
 def request(url, data=None, callback=None, token=None, verifier=None):
-    auth_header = _auth(callback, token, verifier)
     req = urllib2.Request("https://api.fiesta.cc/" + url)
-    req.add_header("Authorization", auth_header)
+    req.add_header("Authorization", "Bearer " + CLIENT_TOKEN)
     return urllib2.urlopen(req, data).read()
+
+
+def auth_url():
+    url = "https://github.com/login/oauth/authorize"
+    return url + "?client_id=" + settings.gh_client_id
+
+
+def token(code):
+    url = "https://github.com/login/oauth/access_token"
+    params = urllib.urlencode({"client_id": settings.gh_client_id,
+                               "client_secret": settings.gh_secret,
+                               "code": code})
+    response = urlparse.parse_qs(urllib.urlopen(url, params).read())
+    return response.get("access_token", [None])[0]
 
 
 def json_request(url, data=None, *args, **kwargs):
@@ -38,25 +79,19 @@ def json_request(url, data=None, *args, **kwargs):
     return json.loads(request(url, data, *args, **kwargs))
 
 
-def temporary_credentials(c):
-    return dict(urlparse.parse_qsl(request("oauth/initiate", callback=c)))
-
-
-def authorize_url(credentials):
-    url = "https://fiesta.cc/authorize?oauth_token=%s"
-    return url % credentials["oauth_token"]
-
-
 def token(temp_creds, verifier):
     return dict(urlparse.parse_qsl(request("oauth/token",
                                            token=temp_creds,
                                            verifier=verifier)))
 
 
+@with_client_token
 def address(email):
     try:
         return json_request("address/" + email)
     except urllib2.HTTPError, e:
         if e.code == 404:
             return None
+        elif e.code == 401:
+            raise Reauthorize()
         raise

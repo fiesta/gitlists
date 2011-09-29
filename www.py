@@ -1,13 +1,13 @@
+import json
 import urlparse
 
-from decorator import decorator
+import decorator
 import flask
 
 import db
 import github
 import errors
 import fiesta
-import json
 import settings
 import sign
 
@@ -17,7 +17,7 @@ app.secret_key = settings.session_key
 
 
 def _gen_xsrf(action):
-    return sign.sign(action + flask.session["t"])
+    return sign.sign(action + flask.session["g"])
 
 
 def gen_xsrf(actions):
@@ -48,76 +48,52 @@ def check_xsrf(action, timeout=60*60):
         if res:
             return res
 
-        msg = action + flask.session["t"]
+        msg = action + flask.session["g"]
         status = sign.check_sig(msg, flask.request.form.get("x"), timeout)
         if status == sign.BAD:
             return flask.abort(403, "Bad XSRF token.")
         elif status == sign.TIMEOUT:
             flask.flash("Your session timed out, please try again.")
-            return flask.redirect(flask.request.headers.get("REFERER", "/"))
+            redirect = flask.request.headers.get("REFERER", "/")
+            return flask.redirect(redirect)
         return view(*args, **kwargs)
-    return decorator(check_xsrf)
+    return decorator.decorator(check_xsrf)
 
 
-def user_data():
+@decorator.decorator
+def reauthorize(view, *args, **kwargs):
     try:
-        user = db.user(flask.session["i"])
-        if user:
-            return user
-    except:
-        pass
-
-    user = github.user_info()
-    flask.session["i"] = user["id"]
-    db.email(user["id"], user["email"])
-
-    doc = {"name": user["name"],
-           "email": user["email"],
-           "url": user["html_url"],
-           "handle": user["login"],
-           "avatar": user["avatar_url"],
-           "repos": [],
-           "orgs": []}
-
-    for repo in github.repos():
-        if not repo["fork"]:
-            doc["repos"].append({"name": repo["name"],
-                                 "description": repo["description"]})
-    for org in github.orgs():
-        org = {"id": org["id"],
-               "handle": org["login"],
-               "avatar": org["avatar_url"],
-               "repos": []}
-        for repo in github.repos(org=org["handle"]):
-            org["repos"].append({"name": repo["name"],
-                                 "description": repo["description"]})
-        doc["orgs"].append(org)
-
-    db.user(user["id"], doc)
-    return doc
+        return view(*args, **kwargs)
+    except github.Reauthorize:
+        del flask.session["g"]
+        return flask.redirect("/")
 
 
 @app.route("/")
+@reauthorize
 def index():
-    if "t" in flask.session:
-        user = "i" in flask.session and db.user(flask.session["i"])
-        if not user:
-            try:
-                user = user_data()
-            except github.Reauthorize:
-                del flask.session["t"]
-                del flask.session["i"]
-                return flask.redirect("/")
+    if "g" in flask.session:
+        orgs = github.orgs()
+        org_repos = [github.repos(org=org["login"]) for org in orgs]
         return flask.render_template("index_logged_in.html",
-                                     user=user, **gen_xsrf(["refresh", "logout"]))
-    return flask.render_template("index.html",
-                                 github_auth_url=github.auth_url())
+                                     user=github.user_info(),
+                                     repos=github.repos(),
+                                     orgs=orgs, org_repos=org_repos)
+    return flask.render_template("index.html", auth_url=github.auth_url())
 
 
-def repo_data(user, repo, name, org=None):
-    username = org and org["handle"] or user["handle"]
+@reauthorize
+def repo_page(user, repos, name, org=None):
+    repo = None
+    for r in repos:
+        if r["name"] == name:
+            repo = r
+    if not repo:
+        return flask.abort(404, "No matching repo")
 
-    ignore = set([user["handle"], "invalid-email-address"])
+    username = org and org["login"] or user["login"]
+
+    ignore = set([user["login"], "invalid-email-address"])
 
     def query(function):
         result = function(username, name, ignore)
@@ -125,43 +101,19 @@ def repo_data(user, repo, name, org=None):
         return result
 
     # Note that order of these calls matters as we are updating `ignore`.
-    repo["collaborators"] = query(github.collaborators)
-    repo["contributors"] = query(github.contributors)
+    collaborators = query(github.collaborators)
+    contributors = query(github.contributors)
 
+    org_members = []
     if org:
-        org_members = github.members(org["handle"], ignore)
-        ignore.update([x["l"] for x in org_members])
-        repo["org_members"] = org_members
+        org_members = github.members(org["login"], ignore)
+        ignore.update(org_members)
 
-    repo["forkers"] = query(github.forkers)
-    repo["watchers"] = query(github.watchers)
+    forkers = query(github.forkers)
+    watchers = query(github.watchers)
 
-    db.user(user["_id"], user)
-
-
-def repo_page(user, repos, name, org=None):
-    repo = None
-    for r in repos:
-        if r["name"] == name:
-            repo = r
-    if not repo:
-        return flaswwk.abort(404, "No matching repo")
-
-    if "collaborators" not in repo:
-        try:
-            repo_data(user, repo, name, org)
-        except github.Reauthorize:
-            del flask.session["t"]
-            del flask.session["i"]
-            redirect("/")
-
-    n = 0
-    opts = ["collaborators", "contributors", "forkers", "watchers"]
-    if org:
-        opts += ["org_members"]
-    for k in opts:
-        if repo[k]:
-            n += 1
+    n = len([x for x in [collaborators, contributors,
+                         org_members, forkers, watchers] if x])
 
     if n == 1:
         n = "1"
@@ -170,37 +122,34 @@ def repo_page(user, repos, name, org=None):
 
     return flask.render_template("repo.html", user=user, n=n,
                                  repo=repo, org=org,
-                                 **gen_xsrf(["refresh_repo", "create", "logout"]))
+                                 collaborators=collaborators,
+                                 contributors=contributors,
+                                 org_members=org_members,
+                                 forkers=forkers,
+                                 watchers=watchers,
+                                 **gen_xsrf(["create"]))
 
 
 @app.route("/repo/<name>")
+@reauthorize
 def repo(name):
-    user = "i" in flask.session and db.user(flask.session["i"])
-    if not user:
+    if "g" not in flask.session:
         return flask.abort(403, "No user")
-
-    return repo_page(user, user["repos"], name)
+    return repo_page(github.user_info(), github.repos(), name)
 
 
 @app.route("/repo/<org_handle>/<name>")
+@reauthorize
 def org_repo(org_handle, name):
-    user = "i" in flask.session and db.user(flask.session["i"])
-    if not user:
+    if "g" not in flask.session:
         return flask.abort(403, "No user")
 
-    for org in user["orgs"]:
-        if org["handle"] == org_handle:
-            return repo_page(user, org["repos"], name, org)
+    for org in github.orgs():
+        if org["login"] == org_handle:
+            return repo_page(github.user_info(),
+                             github.repos(org=org["login"]), name, org)
 
     return flask.abort(404, "No matching org")
-
-
-@app.route("/logout", methods=["POST"])
-@check_xsrf("logout")
-def logout():
-    del flask.session["t"]
-    del flask.session["i"]
-    return flask.redirect("/")
 
 
 def valid_email(e):
@@ -225,10 +174,7 @@ def _create(github_id, usernames, addresses, repo, org):
 @app.route("/create", methods=["POST"])
 @check_xsrf("create")
 def create():
-    github_id = flask.session.get("i", None)
-    email = github_id and db.email(github_id)
-    if not email:
-        return flask.abort(403, "No email")
+    user = github.user_info()
 
     repo = flask.request.form.get("repo")
     org = flask.request.form.get("org")
@@ -240,9 +186,9 @@ def create():
         flask.flash("Please select some list members before creating your list.")
         return flask.redirect(repo_url(repo, org))
 
-    if not fiesta.address(email) or "oauth_token" in db.user(flask.session["i"]):
+    if not fiesta.address(user["email"]) or flask.session.get("f", None):
         try:
-            return _create(github_id, usernames, addresses, repo, org)
+            return _create(user["id"], usernames, addresses, repo, org)
         except:
             pass
 
@@ -270,27 +216,18 @@ def authcreate():
                    pending["addresses"], pending["repo"], pending["org"])
 
 
-@app.route("/refresh", methods=["POST"])
-@check_xsrf("refresh")
-def refresh():
-    if "i" in flask.session:
-        db.delete_user(flask.session["i"])
-    return flask.redirect("/")
-
-
-@app.route("/refresh_repo", methods=["POST"])
-@check_xsrf("refresh_repo")
-def refresh_repo():
-    raise errors.TODO("delete repo info")
-
-
-@app.route("/auth/response")
-def auth_response():
-    code = flask.request.args.get("code", "")
-    token = github.token_for_code(code)
+@app.route("/auth/github")
+def auth_github():
+    token = github.token(flask.request.args["code"])
     if token:
-        flask.session["t"] = token
+        flask.session["g"] = token
     return flask.redirect("/")
+
+
+@app.route("/auth/fiesta")
+def auth_fiesta():
+    token = fiesta.get_user_token(flask.request.args["code"])
+    raise errors.TODO("do something here")
 
 
 @app.route("/favicon.ico")

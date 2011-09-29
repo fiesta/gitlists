@@ -4,6 +4,7 @@ import urlparse
 
 import flask
 
+import db
 import settings
 
 
@@ -12,13 +13,12 @@ class Reauthorize(Exception):
 
 
 def auth_url():
-    url = "https://github.com/login/oauth/authorize"
-    return url + "?client_id=" + settings.gh_client_id
+    return "https://github.com/login/oauth/authorize?client_id=" + settings.gh_id
 
 
-def token_for_code(code):
+def token(code):
     url = "https://github.com/login/oauth/access_token"
-    params = urllib.urlencode({"client_id": settings.gh_client_id,
+    params = urllib.urlencode({"client_id": settings.gh_id,
                                "client_secret": settings.gh_secret,
                                "code": code})
     response = urlparse.parse_qs(urllib.urlopen(url, params).read())
@@ -26,16 +26,21 @@ def token_for_code(code):
 
 
 def make_request(u, big=False):
-    u = "https://api.github.com%s?access_token=%s" % (u, flask.session["t"])
+    # We memo-ize requests to keep from hammering GH's API.
+    u = "https://api.github.com%s?access_token=%s" % (u, flask.session["g"])
     if big:
         u += "&per_page=100"
-    try:
-        return json.load(urllib.urlopen(u))
-    except IOError, e:
-        if e.args[1] == 401:
-            raise Reauthorize("Got a 401...")
-        else:
-            raise
+    data = db.memoized(u)
+    if not data:
+        try:
+            data = urllib.urlopen(u).read()
+            db.memoize(u, data)
+        except IOError, e:
+            if e.args[1] == 401:
+                raise Reauthorize("Got a 401...")
+            else:
+                raise
+    return json.loads(data)
 
 
 def user_info():

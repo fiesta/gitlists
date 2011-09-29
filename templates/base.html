@@ -10,14 +10,6 @@
     {% block scripts %}{% endblock %}
   </head>
   <body>
-    {% if xsrf and xsrf.logout %}
-    <div id="h">
-      <form id="logout" method="POST" action="/logout">
-        <input type="hidden" name="x" value="{{ xsrf.logout }}">
-        <input type="submit" value="Log out">
-      </form>
-    </div>
-    {% endif %}
     {% with messages = get_flashed_messages() %}
     {% if messages %}
     <ul class="flashes">
@@ -30,7 +22,7 @@
     {% block content %}{% endblock %}
     <div id="f">
       <hr>
-      This site is open source &mdash; <a href="http://github.com/fiesta/gitlists">fork it on github</a>. :)<span id="copy">&copy; 2011 <a href="https://fiesta.cc">Fiesta Technology</a></span>
+      This site is <a href="http://github.com/fiesta/gitlists">open source</a>.<span id="copy">&copy; 2011 <a href="https://fiesta.cc">Fiesta</a></span>
     </div>
   </body>
 </html>

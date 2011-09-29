@@ -21,19 +21,11 @@ h1, h2, h3 {
 }
 h3 {
     text-decoration: underline;
-    margin-top: 3em;
-}
-h2 input {
-    margin-left: 1em;
-    font-size: 11px;
-    font-weight: normal;
+    margin-top: 2em;
 }
 .create {
-    margin: 1em;
+    margin: 1em 0;
     font-size: 16px;
-}
-#logout {
-    float: right;
 }
 .flashes {
     margin: 0 0;
@@ -42,4 +34,7 @@ h2 input {
     list-style: none;
     color: #B00;
     font-size: 16px;
+}
+.top {
+    margin-top: 3em;
 }
