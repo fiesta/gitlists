@@ -60,17 +60,8 @@ def check_xsrf(action, timeout=60*60):
     return decorator.decorator(check_xsrf)
 
 
-@decorator.decorator
-def reauthorize(view, *args, **kwargs):
-    try:
-        return view(*args, **kwargs)
-    except github.Reauthorize:
-        del flask.session["g"]
-        return flask.redirect("/")
-
-
 @app.route("/")
-@reauthorize
+@github.reauthorize
 def index():
     if "g" in flask.session:
         orgs = github.orgs()
@@ -82,7 +73,7 @@ def index():
     return flask.render_template("index.html", auth_url=github.auth_url())
 
 
-@reauthorize
+@github.authorized
 def repo_page(user, repos, name, org=None):
     repo = None
     for r in repos:
@@ -126,12 +117,11 @@ def repo_page(user, repos, name, org=None):
                                  contributors=contributors,
                                  org_members=org_members,
                                  forkers=forkers,
-                                 watchers=watchers,
-                                 **gen_xsrf(["create"]))
+                                 watchers=watchers)
 
 
 @app.route("/repo/<name>")
-@reauthorize
+@github.authorized
 def repo(name):
     if "g" not in flask.session:
         return flask.abort(403, "No user")
@@ -139,7 +129,7 @@ def repo(name):
 
 
 @app.route("/repo/<org_handle>/<name>")
-@reauthorize
+@github.authorized
 def org_repo(org_handle, name):
     if "g" not in flask.session:
         return flask.abort(403, "No user")
@@ -167,67 +157,99 @@ def repo_url(repo, org=None):
     return "/repo/%s%s" % (org and org + "/" or "", repo)
 
 
-def _create(github_id, usernames, addresses, repo, org):
-    return "hello world"
+@app.route("/create", methods=["GET"])
+@github.authorized
+@fiesta.authorized
+def create_get():
+    repo = flask.request.args.get("repo")
+    org = flask.request.args.get("org")
 
-
-@app.route("/create", methods=["POST"])
-@check_xsrf("create")
-def create():
-    user = github.user_info()
-
-    repo = flask.request.form.get("repo")
-    org = flask.request.form.get("org")
-    usernames = flask.request.form.getlist("username")
-    addresses = flask.request.form.getlist("address")
+    usernames = flask.request.args.getlist("username")
+    addresses = flask.request.args.getlist("address")
     addresses = [a for a in addresses if valid_email(a)]
 
     if not addresses and not usernames:
         flask.flash("Please select some list members before creating your list.")
         return flask.redirect(repo_url(repo, org))
 
-    if not fiesta.address(user["email"]) or flask.session.get("f", None):
-        try:
-            return _create(user["id"], usernames, addresses, repo, org)
-        except:
-            pass
-
-    creds = fiesta.temporary_credentials(flask.request.url_root + "authcreate")
-    db.pending_create(creds, github_id, usernames, addresses, repo, org)
-    return flask.redirect(fiesta.authorize_url(creds))
+    return flask.render_template("create.html", user=github.user_info(),
+                                 repo=repo, org=org, usernames=usernames,
+                                 addresses=addresses, **gen_xsrf(["create"]))
 
 
-@app.route("/authcreate")
-def authcreate():
-    id = flask.request.args.get("oauth_token")
-    verifier = flask.request.args.get("oauth_verifier")
-    pending = db.get_pending(id)
-    if not id or not verifier or not pending:
-        flask.flash("Authentication failed, please try again.")
-        return flask.redirect("/")
-    temp = {"oauth_token": id, "oauth_token_secret": pending["secret"]}
-    token = fiesta.token(temp, verifier)
-    if not token:
-        flask.flash("Authentication failed, please try again.")
-        return flask.redirect("/")
-    db.add_fiesta_token(pending["creator_id"], token)
-    db.delete_pending(id)
-    return _create(pending["creator_id"], pending["usernames"],
-                   pending["addresses"], pending["repo"], pending["org"])
+@app.route("/create", methods=["POST"])
+@github.authorized
+@fiesta.authorized
+@check_xsrf("create")
+def create_post():
+    user = github.user_info()
+
+    repo = flask.request.form.get("repo")
+    org = flask.request.form.get("org")
+    usernames = flask.request.form.getlist("username")
+    addresses = flask.request.form.getlist("address")
+    addresses = dict([(a, None) for a in addresses if valid_email(a)])
+
+    if not addresses and not usernames:
+        flask.flash("Please select some list members before creating your list.")
+        return flask.redirect(repo_url(repo, org))
+
+    repo_url = "https://github.com/%s/%s." % (org or user["login"], repo)
+    description = "Gitlist for " + repo_url
+    welcome_message = {"subject": "Welcome to %s@gitlists.com" % repo,
+                       "markdown": """
+[%s](%s) added you to a Gitlist for [%s](%s). Gitlists are dead-simple mailing lists for Github projects. You can create your own at [gitlists.com](https://gitlists.com).
+
+Use %s@gitlists.com to email the list. Use the "List members" link below to see, add or remove list members. Use the "Unsubscribe" link below if you don't want to receive any messages from this list.
+""" % (user["login"], "http://github.com/" + user["login"],
+       repo, repo_url,
+       repo)}
+
+    creator = {"group_name": repo,
+               "address": user["email"],
+               "display_name": user["name"],
+               "welcome_message": welcome_message}
+    response = fiesta.json_request("/group", {"creator": creator,
+                                              "domain": "gitlists.com",
+                                              "description": description})
+    pending = response["status"]["code"] == 202
+    members = response["data"]["members"]
+    group_id = response["data"]["group_id"]
+
+    for address in addresses:
+        fiesta.json_request(members, {"group_name": repo,
+                                      "address": address,
+                                      "welcome_message": welcome_message})
+
+    for username in usernames:
+        member_user = github.user(username)
+        fiesta.json_request(members, {"group_name": repo,
+                                      "address": member_user["email"],
+                                      "display_name": member_user["name"],
+                                      "welcome_message": welcome_message})
+
+    if pending:
+        flask.flash("Please check your '%s' inbox to confirm your gitlist." % user["email"])
+    else:
+        flask.flash("You should receive a welcome message at '%s'." % user["email"])
+    return flask.redirect("/")
+
+
+def auth(token_func, session_key):
+    token = token_func(flask.request.args["code"])
+    if token:
+        flask.session[session_key] = token
+    return flask.redirect(flask.request.args.get("state", "/"))
 
 
 @app.route("/auth/github")
 def auth_github():
-    token = github.token(flask.request.args["code"])
-    if token:
-        flask.session["g"] = token
-    return flask.redirect("/")
+    return auth(github.token, "g")
 
 
 @app.route("/auth/fiesta")
 def auth_fiesta():
-    token = fiesta.get_user_token(flask.request.args["code"])
-    raise errors.TODO("do something here")
+    return auth(fiesta.token, "f")
 
 
 @app.route("/favicon.ico")

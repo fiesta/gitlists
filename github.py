@@ -2,6 +2,7 @@ import json
 import urllib
 import urlparse
 
+import decorator
 import flask
 
 import db
@@ -10,6 +11,25 @@ import settings
 
 class Reauthorize(Exception):
     pass
+
+
+@decorator.decorator
+def reauthorize(view, *args, **kwargs):
+    try:
+        return view(*args, **kwargs)
+    except Reauthorize:
+        del flask.session["g"]
+        return flask.redirect("/")
+
+
+@decorator.decorator
+def authorized(view, *args, **kwargs):
+    if "g" not in flask.session:
+        return flask.redirect(auth_url())
+    try:
+        return view(*args, **kwargs)
+    except Reauthorize:
+        return flask.redirect(auth_url())
 
 
 def auth_url():

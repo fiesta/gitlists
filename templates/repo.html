@@ -2,10 +2,10 @@
 
 {% block content %}
 <h1><a href="/">Home</a> > {{ repo.name }}@gitlists.com</h1>
+<h2>Who should be a member of the gitlist?</h2>
 <hr>
-<form name="create" method="POST" action="/create">
+<form name="create" method="GET" action="/create">
   {% if collaborators or contributors or org_members or forkers or watchers %}
-  <h2>Select list members</h2>
   <div class="yui3-g">
   {% if collaborators %}
   <div class="yui3-u-{{ n }}">
@@ -61,8 +61,6 @@
   {% if org %}
   <input type="hidden" name="org" value="{{ org.login }}">
   {% endif %}
-  <input type="hidden" name="x" value="{{ xsrf.create }}">
-  <p class="top">Click below to finish creating your gitlist; an introductory email will be sent to the list members.</p>
-  <input class="create" type="submit" value="create list">
+  <input class="create" type="submit" value="configure & create">
 </form>
 {% endblock %}

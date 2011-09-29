@@ -5,6 +5,7 @@ import urllib2
 import urlparse
 
 import decorator
+import flask
 
 import settings
 
@@ -13,11 +14,19 @@ class Reauthorize(Exception):
     pass
 
 
-CLIENT_TOKEN = None
+@decorator.decorator
+def authorized(view, *args, **kwargs):
+    if "f" not in flask.session:
+        return flask.redirect(auth_url(flask.request.url))
+    try:
+        return view(*args, **kwargs)
+    except Reauthorize:
+        return flask.redirect(auth_url(flask.request.url))
 
 
-def auth_url():
-    return "https://fiesta.cc/authorize?client_id=" + settings.fiesta_id
+def auth_url(next):
+    return "https://fiesta.cc/authorize?response_type=code&scope=create&client_id=%s&state=%s" % \
+        (settings.fiesta_id, urllib.quote(next))
 
 
 def auth_request(url):
@@ -28,70 +37,27 @@ def auth_request(url):
     return req
 
 
-def get_client_token():
-    global CLIENT_TOKEN
+def token(code):
     req = auth_request("https://api.fiesta.cc/token")
-    data = {"grant_type": "client_credentials"}
-    res = urllib2.urlopen(req, urllib.urlencode(data))
-    CLIENT_TOKEN = json.load(res)["access_token"]
-
-
-def get_user_token(code):
-    req = auth_request("https://api.fiesta.cc/token")
-    data = {"grant_type": "authorization_code", "code": code}
+    data = urllib.urlencode({"grant_type": "authorization_code", "code": code})
     return json.load(urllib2.urlopen(req, data))["access_token"]
 
 
-@decorator.decorator
-def with_client_token(method, *args, **kwargs):
-    if not CLIENT_TOKEN:
-        get_client_token()
-    try:
-        return method(*args, **kwargs)
-    except Reauthorize:
-        get_client_token()
-        return method(*args, **kwargs)
-
-
-def request(url, data=None, callback=None, token=None, verifier=None):
+def request(url, data=None, json=False):
     req = urllib2.Request("https://api.fiesta.cc/" + url)
-    req.add_header("Authorization", "Bearer " + CLIENT_TOKEN)
-    return urllib2.urlopen(req, data).read()
+    req.add_header("Authorization", "Bearer " + flask.session["f"])
+    if json:
+        req.add_header("Content-Type", "application/json")
+    try:
+        return urllib2.urlopen(req, data).read()
+    except urllib2.HTTPError, e:
+        if e.code == 401:
+            raise Reauthorize("Got a 401...")
+        else:
+            raise
 
 
-def auth_url():
-    url = "https://github.com/login/oauth/authorize"
-    return url + "?client_id=" + settings.gh_client_id
-
-
-def token(code):
-    url = "https://github.com/login/oauth/access_token"
-    params = urllib.urlencode({"client_id": settings.gh_client_id,
-                               "client_secret": settings.gh_secret,
-                               "code": code})
-    response = urlparse.parse_qs(urllib.urlopen(url, params).read())
-    return response.get("access_token", [None])[0]
-
-
-def json_request(url, data=None, *args, **kwargs):
+def json_request(url, data=None):
     if data:
         data = json.dumps(data)
-    return json.loads(request(url, data, *args, **kwargs))
-
-
-def token(temp_creds, verifier):
-    return dict(urlparse.parse_qsl(request("oauth/token",
-                                           token=temp_creds,
-                                           verifier=verifier)))
-
-
-@with_client_token
-def address(email):
-    try:
-        return json_request("address/" + email)
-    except urllib2.HTTPError, e:
-        if e.code == 404:
-            return None
-        elif e.code == 401:
-            raise Reauthorize()
-        raise
+    return json.loads(request(url, data, json=True))
