@@ -214,6 +214,20 @@ Use %s@gitlists.com to email the list. Use the "List members" link below to see,
     pending = response["status"]["code"] == 202
     group_id = response["data"]["group_id"]
 
+    for app in flask.request.form.getlist("app"):
+        if app == "public":
+            data = {"application_id": "public",
+                    "options": {"group_name": repo}}
+            fiesta.json_request("/group/%s/application" % group_id, data)
+
+    # Subject prefix & archive are on by default, for now
+    data = {"application_id": "subject_prefix",
+            "options": {"prefix": repo}}
+    fiesta.json_request("/group/%s/application" % group_id, data)
+
+    data = {"application_id": "archive"}
+    fiesta.json_request("/group/%s/application" % group_id, data)
+
     for address in addresses:
         data = {"group_name": repo,
                 "address": address,
