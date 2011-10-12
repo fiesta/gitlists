@@ -12,6 +12,13 @@ import settings
 import sign
 
 
+# If you looked through the source to find this link, then you deserve
+# access to the beta :).
+#
+# But, if you don't mind, keep it on the DL. It's top secret.
+INDEX = "/top_secret"
+
+
 app = flask.Flask(__name__)
 app.secret_key = settings.session_key
 
@@ -54,13 +61,18 @@ def check_xsrf(action, timeout=60*60):
             return flask.abort(403, "Bad XSRF token.")
         elif status == sign.TIMEOUT:
             flask.flash("Your session timed out, please try again.")
-            redirect = flask.request.headers.get("REFERER", "/")
+            redirect = flask.request.headers.get("REFERER", INDEX)
             return flask.redirect(redirect)
         return view(*args, **kwargs)
     return decorator.decorator(check_xsrf)
 
 
 @app.route("/")
+def beta_index():
+    return flask.render_template("beta_index.html")
+
+
+@app.route(INDEX)
 @github.reauthorize
 def index():
     if "g" in flask.session:
@@ -253,7 +265,7 @@ Use %s@gitlists.com to email the list. Use the "List members" link below to see,
         flask.flash("Please check your '%s' inbox to confirm your gitlist." % user["email"])
     else:
         flask.flash("You should receive a welcome message at '%s'." % user["email"])
-    return flask.redirect("/")
+    return flask.redirect(INDEX)
 
 
 @app.route("/auth/github")

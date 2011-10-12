@@ -9,6 +9,9 @@ import db
 import settings
 
 
+INDEX = "/top_secret"
+
+
 class Reauthorize(Exception):
     pass
 
@@ -19,7 +22,7 @@ def reauthorize(view, *args, **kwargs):
         return view(*args, **kwargs)
     except Reauthorize:
         del flask.session["g"]
-        return flask.redirect("/")
+        return flask.redirect(INDEX)
 
 
 @decorator.decorator
@@ -47,7 +50,7 @@ def token(code):
 
 def finish_auth():
     flask.session["g"] = token(flask.request.args["code"])
-    return flask.redirect("/")
+    return flask.redirect(INDEX)
 
 
 def make_request(u, big=False):

@@ -11,6 +11,9 @@ import flask
 import settings
 
 
+INDEX = "/top_secret"
+
+
 @decorator.decorator
 def authorize(view, *args, **kwargs):
     if "f" not in flask.session or \
@@ -19,7 +22,7 @@ def authorize(view, *args, **kwargs):
         if flask.request.method == "GET":
             return flask.redirect(auth_url(flask.request.url))
         elif flask.request.method == "POST":
-            referrer = flask.request.headers.get("REFERER", "/")
+            referrer = flask.request.headers.get("REFERER", INDEX)
             return flask.redirect(auth_url(referrer))
 
     return view(*args, **kwargs)
