@@ -73,12 +73,18 @@ def index():
     return flask.render_template("index.html", auth_url=github.auth_url())
 
 
-@github.authorized
-def repo_page(user, repos, name, org=None):
-    repo = None
-    for r in repos:
+def repo_data(name, org_name=None):
+    for r in github.repos(org_name):
         if r["name"] == name:
-            repo = r
+            return r
+    return None
+
+
+@github.authorized
+def repo_page(name, org=None):
+    user = github.user_info()
+    repo = repo_data(name, org and org["login"])
+
     if not repo:
         return flask.abort(404, "No matching repo")
 
@@ -125,7 +131,7 @@ def repo_page(user, repos, name, org=None):
 def repo(name):
     if "g" not in flask.session:
         return flask.abort(403, "No user")
-    return repo_page(github.user_info(), github.repos(), name)
+    return repo_page(name)
 
 
 @app.route("/repo/<org_handle>/<name>")
@@ -136,8 +142,7 @@ def org_repo(org_handle, name):
 
     for org in github.orgs():
         if org["login"] == org_handle:
-            return repo_page(github.user_info(),
-                             github.repos(org=org["login"]), name, org)
+            return repo_page(name, org)
 
     return flask.abort(404, "No matching org")
 
@@ -185,6 +190,8 @@ def create_post():
 
     repo = flask.request.form.get("repo")
     org = flask.request.form.get("org")
+    repo_obj = repo_data(repo, org)
+
     usernames = flask.request.form.getlist("username")
     addresses = flask.request.form.getlist("address")
     addresses = dict([(a, None) for a in addresses if valid_email(a)])
@@ -194,7 +201,7 @@ def create_post():
         return flask.redirect(repo_url(repo, org))
 
     github_url = "https://github.com/%s/%s" % (org or user["login"], repo)
-    description = "Gitlist for " + github_url
+    description = repo_obj["description"]
     welcome_message = {"subject": "Welcome to %s@gitlists.com" % repo,
                        "markdown": """
 [%s](%s) added you to a Gitlist for [%s](%s). Gitlists are dead-simple mailing lists for Github projects. You can create your own at [gitlists.com](https://gitlists.com).
