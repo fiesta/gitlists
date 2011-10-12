@@ -45,6 +45,11 @@ def token(code):
     return response.get("access_token", [None])[0]
 
 
+def finish_auth():
+    flask.session["g"] = token(flask.request.args["code"])
+    return flask.redirect("/")
+
+
 def make_request(u, big=False):
     # We memo-ize requests to keep from hammering GH's API.
     u = "https://api.github.com%s?access_token=%s" % (u, flask.session["g"])
@@ -63,8 +68,15 @@ def make_request(u, big=False):
     return json.loads(data)
 
 
-def user_info():
-    return make_request("/user")
+def user_info(username=None):
+    if not username:
+        return make_request("/user")
+    u = "http://github.com/api/v2/json/user/show/" + username
+    data = db.memoized(u)
+    if not data:
+        data = urllib.urlopen(u).read()
+        db.memoize(u, data)
+    return json.loads(data)
 
 
 def repos(org=None):

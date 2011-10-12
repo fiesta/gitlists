@@ -1,7 +1,7 @@
 from pymongo import Connection
 
 
-db = Connection(tz_aware=True)["gitlists"]
+db = Connection(replicaset="fiesta", tz_aware=True)["gitlists"]
 db.gh_memo.create_index("u")
 
 

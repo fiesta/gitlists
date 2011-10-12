@@ -159,7 +159,7 @@ def repo_url(repo, org=None):
 
 @app.route("/create", methods=["GET"])
 @github.authorized
-@fiesta.authorized
+@fiesta.authorize
 def create_get():
     repo = flask.request.args.get("repo")
     org = flask.request.args.get("org")
@@ -179,7 +179,6 @@ def create_get():
 
 @app.route("/create", methods=["POST"])
 @github.authorized
-@fiesta.authorized
 @check_xsrf("create")
 def create_post():
     user = github.user_info()
@@ -216,17 +215,18 @@ Use %s@gitlists.com to email the list. Use the "List members" link below to see,
     group_id = response["data"]["group_id"]
 
     for address in addresses:
-        data =  {"group_name": repo,
-                 "address": address,
-                 "welcome_message": welcome_message}
+        data = {"group_name": repo,
+                "address": address,
+                "welcome_message": welcome_message}
         fiesta.json_request("/membership/" + group_id, data)
 
     for username in usernames:
-        member_user = github.user(username)
-        fiesta.json_request(members, {"group_name": repo,
-                                      "address": member_user["email"],
-                                      "display_name": member_user["name"],
-                                      "welcome_message": welcome_message})
+        member_user = github.user_info(username)["user"]
+        data = {"group_name": repo,
+                "address": member_user["email"],
+                "display_name": member_user["name"],
+                "welcome_message": welcome_message}
+        fiesta.json_request("/membership/" + group_id, data)
 
     if pending:
         flask.flash("Please check your '%s' inbox to confirm your gitlist." % user["email"])
@@ -235,21 +235,14 @@ Use %s@gitlists.com to email the list. Use the "List members" link below to see,
     return flask.redirect("/")
 
 
-def auth(token_func, session_key):
-    token = token_func(flask.request.args["code"])
-    if token:
-        flask.session[session_key] = token
-    return flask.redirect(flask.request.args.get("state", "/"))
-
-
 @app.route("/auth/github")
 def auth_github():
-    return auth(github.token, "g")
+    return github.finish_auth()
 
 
 @app.route("/auth/fiesta")
 def auth_fiesta():
-    return auth(fiesta.token, "f")
+    return fiesta.finish_auth()
 
 
 @app.route("/favicon.ico")
