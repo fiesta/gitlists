@@ -3,7 +3,6 @@
 {% block content %}
 <h1><a href="/">Home</a> > {{ repo.name }}@gitlists.com</h1>
 <h2>Who should be a member of the gitlist?</h2>
-<hr>
 <form name="create" method="GET" action="/create">
   {% if collaborators or contributors or org_members or forkers or watchers %}
   <div class="yui3-g">

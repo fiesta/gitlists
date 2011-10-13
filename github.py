@@ -71,15 +71,22 @@ def make_request(u, big=False):
     return json.loads(data)
 
 
-def user_info(username=None):
-    if not username:
-        return make_request("/user")
+def current_user():
+    data = make_request("/user")
+    if data:
+        db.save_user(data["login"], data["email"], data["name"])
+    return data
+
+
+def user_info(username):
+    existing = db.user(username)
+    if existing:
+        return existing
+
     u = "http://github.com/api/v2/json/user/show/" + username
-    data = db.memoized(u)
-    if not data:
-        data = urllib.urlopen(u).read()
-        db.memoize(u, data)
-    return json.loads(data)
+    data = json.loads(urllib.urlopen(u).read())["user"]
+    db.save_user(username, data["email"], data["name"])
+    return data
 
 
 def repos(org=None):

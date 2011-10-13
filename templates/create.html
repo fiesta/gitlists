@@ -2,7 +2,6 @@
 
 {% block content %}
 <h1><a href="/">Home</a> > <a href="/repo/{{ org and org + "/" or "" }}{{ repo }}">{{ repo }}@gitlists.com</a> > Create</h1>
-<hr>
 <form id="create" method="POST" action="/create">
   <p class="top">Configure your gitlist and click <strong>Create</strong>.</p>
   <p>When it's created a welcome message will be sent out to all of the list members.</p>

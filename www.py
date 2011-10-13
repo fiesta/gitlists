@@ -1,15 +1,31 @@
 import json
+import re
+import sys
 import urlparse
 
 import decorator
 import flask
+from paste.exceptions.errormiddleware import ErrorMiddleware
 
+import daemon
 import db
 import github
 import errors
 import fiesta
 import settings
 import sign
+
+
+app = flask.Flask(__name__)
+app.secret_key = settings.session_key
+app.config["PROPAGATE_EXCEPTIONS"] = True
+
+if settings.env == "prod":
+    app.wsgi_app = ErrorMiddleware(app.wsgi_app, debug=False,
+                                   error_email=settings.noc_address,
+                                   from_address="noreply@gitlists.com",
+                                   error_subject_prefix="[Gitlists] Error ",
+                                   smtp_server=settings.relay_host)
 
 
 # If you looked through the source to find this link, then you deserve
@@ -19,18 +35,10 @@ import sign
 INDEX = "/top_secret"
 
 
-app = flask.Flask(__name__)
-app.secret_key = settings.session_key
-
-
-def _gen_xsrf(action):
-    return sign.sign(action + flask.session["g"])
-
-
 def gen_xsrf(actions):
     xsrf = {}
     for action in actions:
-        xsrf[action] = _gen_xsrf(action)
+        xsrf[action] = sign.sign(action + flask.session["g"])
     return {"xsrf": xsrf}
 
 
@@ -72,6 +80,17 @@ def beta_index():
     return flask.render_template("beta_index.html")
 
 
+@app.route("/beta", methods=["POST"])
+def beta_post():
+    username = flask.request.form.get("github", "").strip()
+    if not username or not re.match(r"^[a-zA-Z0-9\-]+$", username):
+        flask.flash("Invalid github username.")
+    else:
+        db.beta(username)
+        flask.flash("Thanks %s, we'll let you know when the party's on!" % username)
+    return flask.redirect("/")
+
+
 @app.route(INDEX)
 @github.reauthorize
 def index():
@@ -79,7 +98,7 @@ def index():
         orgs = github.orgs()
         org_repos = [github.repos(org=org["login"]) for org in orgs]
         return flask.render_template("index_logged_in.html",
-                                     user=github.user_info(),
+                                     user=github.current_user(),
                                      repos=github.repos(),
                                      orgs=orgs, org_repos=org_repos)
     return flask.render_template("index.html", auth_url=github.auth_url())
@@ -94,7 +113,7 @@ def repo_data(name, org_name=None):
 
 @github.authorized
 def repo_page(name, org=None):
-    user = github.user_info()
+    user = github.current_user()
     repo = repo_data(name, org and org["login"])
 
     if not repo:
@@ -189,7 +208,7 @@ def create_get():
         flask.flash("Please select some list members before creating your list.")
         return flask.redirect(repo_url(repo, org))
 
-    return flask.render_template("create.html", user=github.user_info(),
+    return flask.render_template("create.html", user=github.current_user(),
                                  repo=repo, org=org, usernames=usernames,
                                  addresses=addresses, **gen_xsrf(["create"]))
 
@@ -198,7 +217,7 @@ def create_get():
 @github.authorized
 @check_xsrf("create")
 def create_post():
-    user = github.user_info()
+    user = github.current_user()
 
     repo = flask.request.form.get("repo")
     org = flask.request.form.get("org")
@@ -254,7 +273,7 @@ Use %s@gitlists.com to email the list. Use the "List members" link below to see,
         fiesta.json_request("/membership/" + group_id, data)
 
     for username in usernames:
-        member_user = github.user_info(username)["user"]
+        member_user = github.user_info(username)
         data = {"group_name": repo,
                 "address": member_user["email"],
                 "display_name": member_user["name"],
@@ -283,5 +302,28 @@ def favicon():
     return app.send_static_file("i/favicon.ico")
 
 
+@app.route(settings.error_uri)
+def get_error():
+    """
+    Force an exception so we can test our error handling.
+    """
+    raise Exception("error")
+
+
+class GitlistsDaemon(daemon.Daemon):
+    def __init__(self, port, *args, **kwargs):
+        self.port = port
+        return daemon.Daemon.__init__(self, *args, **kwargs)
+
+    def run(self):
+        app.run(host=settings.host, port=self.port)
+
+
 if __name__ == '__main__':
-    app.run(debug=True)
+    port = 7176
+    if len(sys.argv) > 2:
+        port = int(sys.argv[2])
+    if settings.env == "prod":
+        daemon.go(GitlistsDaemon(port, "/tmp/gitlists-%s.pid" % port))
+    else:
+        app.run(host=settings.host, port=port, debug=True)
