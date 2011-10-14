@@ -95,10 +95,12 @@ def beta_post():
 @github.reauthorize
 def index():
     if "g" in flask.session:
+        user = github.current_user()
+        flask.session["e"] = user["email"]
         orgs = github.orgs()
         org_repos = [github.repos(org=org["login"]) for org in orgs]
         return flask.render_template("index_logged_in.html",
-                                     user=github.current_user(),
+                                     user=user,
                                      repos=github.repos(),
                                      orgs=orgs, org_repos=org_repos)
     return flask.render_template("index.html", auth_url=github.auth_url())

@@ -16,21 +16,22 @@ INDEX = "/top_secret"
 
 @decorator.decorator
 def authorize(view, *args, **kwargs):
+    address = flask.session["e"]
     if "f" not in flask.session or \
             "t" not in flask.session or \
             time.time() - flask.session["t"] > 30*60:
         if flask.request.method == "GET":
-            return flask.redirect(auth_url(flask.request.url))
+            return flask.redirect(auth_url(address, flask.request.url))
         elif flask.request.method == "POST":
             referrer = flask.request.headers.get("REFERER", INDEX)
-            return flask.redirect(auth_url(referrer))
+            return flask.redirect(auth_url(address, referrer))
 
     return view(*args, **kwargs)
 
 
-def auth_url(next):
-    return "https://fiesta.cc/authorize?response_type=code&scope=create modify&client_id=%s&state=%s" % \
-        (settings.fiesta_id, urllib.quote(next))
+def auth_url(address, next):
+    return "https://fiesta.cc/authorize?response_type=code&scope=create modify&client_id=%s&state=%s&hint=%s" % \
+        (settings.fiesta_id, urllib.quote(next), address)
 
 
 def auth_request(url):
