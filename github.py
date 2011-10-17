@@ -36,7 +36,10 @@ def authorized(view, *args, **kwargs):
 
 
 def auth_url():
-    return "https://github.com/login/oauth/authorize?client_id=" + settings.gh_id
+    params = {"client_id": settings.gh_id}
+    qs = urllib.urlencode(params)
+    return "https://github.com/login/oauth/authorize?" + qs
+
 
 
 def token(code):

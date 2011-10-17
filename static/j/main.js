@@ -9,4 +9,12 @@ jQuery(function() {
             return !this.checked;
         });
     });
+    jQuery(".select-all").click(function () {
+        jQuery(this).closest("div").find("input:checkbox").attr("checked", "checked");
+        return false;
+    })
+    jQuery(".select-none").click(function () {
+        jQuery(this).closest("div").find("input:checkbox").removeAttr("checked");
+        return false;
+    })
 });

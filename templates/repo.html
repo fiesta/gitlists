@@ -8,7 +8,7 @@
   <div class="yui3-g">
   {% if collaborators %}
   <div class="yui3-u-{{ n }}">
-    <h3>Collaborators</h3>
+    <h3><span class="under">Collaborators</span> (Select <a href="#" class="select-all">All</a> | <a href="#" class="select-none">None</a>)</h3>
   {% for member in collaborators %}
   <p><input type="checkbox" name="username" value="{{ member }}" checked="checked"><span class="uname">{{ member }}</span>[<a href="http://github.com/{{ member }}">github</a>]</p>
   {% endfor %}
@@ -16,7 +16,7 @@
   {% endif %}
   {% if contributors %}
   <div class="yui3-u-{{ n }}">
-  <h3>Contributors</h3>
+  <h3><span class="under">Contributors</span> (Select <a href="#" class="select-all">All</a> | <a href="#" class="select-none">None</a>)</h3>
   {% for member in contributors %}
   <p><input type="checkbox" name="username" value="{{ member }}" checked="checked"><span class="uname">{{ member }}</span>[<a href="http://github.com/{{ member }}">github</a>]</p>
   {% endfor %}
@@ -24,7 +24,7 @@
   {% endif %}
   {% if org_members %}
   <div class="yui3-u-{{ n }}">
-  <h3>{{ org.login }} members</h3>
+  <h3><span class="under">{{ org.login }} members</span> (Select <a href="#" class="select-all">All</a> | <a href="#" class="select-none">None</a>)</h3>
   {% for member in org_members %}
   <p><input type="checkbox" name="username" value="{{ member }}"><span class="uname">{{ member }}</span>[<a href="http://github.com/{{ member }}">github</a>]</p>
   {% endfor %}
@@ -32,7 +32,7 @@
   {% endif %}
   {% if forkers %}
   <div class="yui3-u-{{ n }}">
-  <h3>Forkers</h3>
+  <h3><span class="under">Forkers</span> (Select <a href="#" class="select-all">All</a> | <a href="#" class="select-none">None</a>)</h3>
   {% for member in forkers[:50] %}
   <p><input type="checkbox" name="username" value="{{ member }}"><span class="uname">{{ member }}</span>[<a href="http://github.com/{{ member }}">github</a>]</p>
   {% endfor %}
@@ -40,14 +40,14 @@
   {% endif %}
   {% if watchers %}
   <div class="yui3-u-{{ n }}">
-  <h3>Watchers</h3>
+  <h3><span class="under">Watchers</span> (Select <a href="#" class="select-all">All</a> | <a href="#" class="select-none">None</a>)</h3>
   {% for member in watchers[:50] %}
   <p><input type="checkbox" name="username" value="{{ member }}"><span class="uname">{{ member }}</span>[<a href="http://github.com/{{ member }}">github</a>]</p>
   {% endfor %}
   </div>
   {% endif %}
   </div>
-  <h3>Other list members</h3>
+  <h3><span class="under">Other list members</span></h3>
   <p>Enter <span class="freeform-text">an email address</span>. <a class="add_input" href="#">Click here</a> to add another input.</p>
   {% else %}
   <p class="top">This repo doesn't have any collaborators, contributors, forkers or watchers, so you'll need to add addresses manually.</p>
