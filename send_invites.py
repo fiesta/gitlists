@@ -21,7 +21,7 @@ Content-Type: text/plain
 
 Hi %s,
 
-Thanks for joining the Gitlists beta. Gitlists is a really simple way to communicate about your Github projects. You can give it a try here:
+Thanks for joining the Gitlists beta. Gitlists is a simple way to communicate about your Github projects. You can give it a try here:
 https://gitlists.com/top_secret
 
 We always love feedback, but during the beta it's especially important. This is my personal address so please reply with any questions, feedback, or suggestions.
