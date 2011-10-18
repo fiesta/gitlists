@@ -93,8 +93,14 @@ def beta_post():
     return flask.redirect("/")
 
 
+@app.route("/rate_limited")
+def rate_limited():
+    return flask.render_template("rate_limited.html")
+
+
 @app.route(INDEX)
 @github.reauthorize
+@github.rate_limit
 def index():
     if "g" in flask.session:
         user = github.current_user()
@@ -162,6 +168,7 @@ def repo_page(name, org=None):
 
 
 @app.route("/repo/<name>")
+@github.rate_limit
 @github.authorized
 def repo(name):
     if "g" not in flask.session:
@@ -170,6 +177,7 @@ def repo(name):
 
 
 @app.route("/repo/<org_handle>/<name>")
+@github.rate_limit
 @github.authorized
 def org_repo(org_handle, name):
     if "g" not in flask.session:
@@ -198,6 +206,7 @@ def repo_url(repo, org=None):
 
 
 @app.route("/create", methods=["GET"])
+@github.rate_limit
 @github.authorized
 @fiesta.authorize
 def create_get():
@@ -218,6 +227,7 @@ def create_get():
 
 
 @app.route("/create", methods=["POST"])
+@github.rate_limit
 @github.authorized
 @check_xsrf("create")
 def create_post():

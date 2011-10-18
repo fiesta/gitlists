@@ -12,8 +12,24 @@ import settings
 INDEX = "/top_secret"
 
 
-class Reauthorize(Exception):
+class Error(Exception):
     pass
+
+
+class Reauthorize(Error):
+    pass
+
+
+class RateLimited(Error):
+    pass
+
+
+@decorator.decorator
+def rate_limit(view, *args, **kwargs):
+    try:
+        return view(*args, **kwargs)
+    except RateLimited:
+        return flask.redirect("/rate_limited")
 
 
 @decorator.decorator
@@ -73,7 +89,13 @@ def make_request(u, big=False):
                 raise Reauthorize("Got a 401...")
             else:
                 raise
-    return json.loads(data)
+    res = json.loads(data)
+    print repr(res)
+    if "error" in res:
+        if "Rate Limit" in res["error"]:
+            raise RateLimited()
+        raise Error("Github error: " + repr(res["error"]))
+    return res
 
 
 def current_user():
@@ -92,11 +114,14 @@ def user_info(username):
         return existing
 
     u = "http://github.com/api/v2/json/user/show/" + username
-    data = json.loads(urllib.urlopen(u).read())["user"]
-    if data["email"]:
-        db.save_user(username, data["email"], data["name"])
-        return data
-    return None
+    data = json.loads(urllib.urlopen(u).read())
+    if "error" in data:
+        if "Rate Limit" in data["error"][0]:
+            raise RateLimited()
+        raise Error("Github error: " + repr(data["error"]))
+    data = data["user"]
+    db.save_user(username, data.get("email", None), data["name"])
+    return data
 
 
 def repos(org=None):
