@@ -3,6 +3,7 @@ from pymongo import Connection
 
 db = Connection(replicaset="fiesta", tz_aware=True)["gitlists"]
 db.memo.create_index("u")
+db.beta.create_index("gh", unique=True)
 
 
 # Caching arbitrary URIs
