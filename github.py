@@ -36,7 +36,8 @@ def authorized(view, *args, **kwargs):
 
 
 def auth_url():
-    params = {"client_id": settings.gh_id}
+    params = {"client_id": settings.gh_id,
+              "scope": "user"}
     qs = urllib.urlencode(params)
     return "https://github.com/login/oauth/authorize?" + qs
 
@@ -46,6 +47,7 @@ def token(code):
     url = "https://github.com/login/oauth/access_token"
     params = urllib.urlencode({"client_id": settings.gh_id,
                                "client_secret": settings.gh_secret,
+                               "scope": "user",
                                "code": code})
     response = urlparse.parse_qs(urllib.urlopen(url, params).read())
     return response.get("access_token", [None])[0]
@@ -76,8 +78,11 @@ def make_request(u, big=False):
 
 def current_user():
     data = make_request("/user")
-    if data:
+    if data and data["email"]:
         db.save_user(data["login"], data["email"], data["name"])
+    elif data:
+        email = make_request("/user/emails")[0]
+        db.save_user(data["login"], email, data["name"])
     return data
 
 
@@ -88,8 +93,10 @@ def user_info(username):
 
     u = "http://github.com/api/v2/json/user/show/" + username
     data = json.loads(urllib.urlopen(u).read())["user"]
-    db.save_user(username, data["email"], data["name"])
-    return data
+    if data["email"]:
+        db.save_user(username, data["email"], data["name"])
+        return data
+    return None
 
 
 def repos(org=None):
