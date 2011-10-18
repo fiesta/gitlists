@@ -9,6 +9,9 @@ import settings
 
 def send_invite(username):
     user = github.user_info(username)
+    if not user.get("email", None):
+        print "No public email: " + username
+        return
 
     first_name, _, _ = user["name"].partition(" ")
     if len(first_name) < 2:

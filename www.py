@@ -286,13 +286,20 @@ Use %s@gitlists.com to email the list. Use the "List members" link below to see,
                 "welcome_message": welcome_message}
         fiesta.json_request("/membership/" + group_id, data)
 
+    failed = []
     for username in usernames:
         member_user = github.user_info(username)
+        if not member_user.get("email", None):
+            failed.append(username)
+            continue
+
         data = {"group_name": repo,
                 "address": member_user["email"],
                 "display_name": member_user["name"],
                 "welcome_message": welcome_message}
         fiesta.json_request("/membership/" + group_id, data)
+    if failed:
+        flask.flash("The following users could not be automatically added because their profile does not have a public email address - you'll need to add them manually: %s" % ", ".join(failed))
 
     if pending:
         flask.flash("Please check your '%s' inbox to confirm your gitlist." % user["email"])
