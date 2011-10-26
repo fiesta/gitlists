@@ -258,7 +258,7 @@ Use %s@gitlists.com to email the list. Use the "List members" link below to see,
 
     creator = {"group_name": repo,
                "address": user["email"],
-               "display_name": user["name"],
+               "display_name": user.get("name", ""),
                "welcome_message": welcome_message}
     response = fiesta.json_request("/group", {"creator": creator,
                                               "domain": "gitlists.com",

@@ -13,7 +13,7 @@ def send_invite(username):
         print "No public email: " + username
         return
 
-    first_name, _, _ = user["name"].partition(" ")
+    first_name, _, _ = (user["name"] or "").partition(" ")
     if len(first_name) < 2:
         first_name = username
 
