@@ -90,7 +90,6 @@ def make_request(u, big=False):
             else:
                 raise
     res = json.loads(data)
-    print repr(res)
     if "error" in res:
         if "Rate Limit" in res["error"]:
             raise RateLimited()
@@ -100,10 +99,11 @@ def make_request(u, big=False):
 
 def current_user():
     data = make_request("/user")
-    if data and data["email"]:
+    if data and data.get("email", None):
         db.save_user(data["login"], data["email"], data["name"])
     elif data:
         email = make_request("/user/emails")[0]
+        data["email"] = email
         db.save_user(data["login"], email, data["name"])
     return data
 
