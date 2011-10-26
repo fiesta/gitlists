@@ -1,9 +1,18 @@
 from pymongo import Connection
+import pymongo.errors
+
+import settings
 
 
-db = Connection(replicaset="fiesta", tz_aware=True)["gitlists"]
-db.memo.create_index("u")
-db.beta.create_index("gh", unique=True)
+try:
+    db = Connection(replicaset="fiesta", tz_aware=True)[settings.db]
+except:
+    db = Connection(replicaset="fiesta", tz_aware=True)["gitlists"]
+
+
+def create_indexes():
+    db.memo.create_index("u")
+    db.beta.create_index("gh", unique=True)
 
 
 # Caching arbitrary URIs
@@ -20,7 +29,10 @@ def memoize(uri, data):
 
 # Beta signups
 def beta(username):
-    db.beta.save({"gh": username}, safe=True)
+    try:
+        db.beta.save({"gh": username}, safe=True)
+    except pymongo.errors.DuplicateKeyError:
+        pass
 
 
 # Memoizing github user data

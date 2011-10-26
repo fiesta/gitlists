@@ -337,6 +337,7 @@ class GitlistsDaemon(daemon.Daemon):
         return daemon.Daemon.__init__(self, *args, **kwargs)
 
     def run(self):
+        db.create_indexes()
         app.run(host=settings.host, port=self.port)
 
 
@@ -347,4 +348,5 @@ if __name__ == '__main__':
     if settings.env == "prod":
         daemon.go(GitlistsDaemon(port, "/tmp/gitlists-%s.pid" % port))
     else:
+        db.create_indexes()
         app.run(host=settings.host, port=port, debug=True)
