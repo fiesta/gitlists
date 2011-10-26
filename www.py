@@ -295,7 +295,7 @@ Use %s@gitlists.com to email the list. Use the "List members" link below to see,
 
         data = {"group_name": repo,
                 "address": member_user["email"],
-                "display_name": member_user["name"],
+                "display_name": member_user.get("name", ""),
                 "welcome_message": welcome_message}
         fiesta.json_request("/membership/" + group_id, data)
     if failed:

@@ -4,6 +4,7 @@ import StringIO
 import sys
 import unittest
 import urllib
+import urllib2
 sys.path[0:0] = [""]
 
 import webtest
@@ -18,13 +19,29 @@ GITHUB = {}
 def monkey_patch_urllib():
     def our_urlopen(url, params=None):
         response = ""
-        match = re.match(r"^https://api\.github\.com(/.*)\?.+$", url)
+        gh_match = re.match(r"^https://api\.github\.com(/.*)\?.+$", url)
         if url.startswith("https://github.com/login/oauth/access_token"):
-            response = '{"access_token": ["dummy"]}'
-        elif match:
-            response = json.dumps(GITHUB.get(match.group(1)))
+            response = 'access_token=dummy'
+        elif url.startswith("http://github.com/api/v2/json/user/show/"):
+            _, _, handle = url.rpartition("/")
+            response = json.dumps(GITHUB.get("_user/" + handle))
+        elif gh_match:
+            response = json.dumps(GITHUB.get(gh_match.group(1)))
+        elif url.startswith("https://api.fiesta.cc/token"):
+            response = '{"access_token": "dummy"}'
+        # TODO better mocking here :)
+        elif url.startswith("https://api.fiesta.cc/group"):
+            response = '{"status": {"code": 202}, "data": {"group_id": "dummy"}}'
+        # TODO and here :)
+        elif url.startswith("https://api.fiesta.cc/membership"):
+            response = '{"status": {"code": 202}, "data": {"group_id": "dummy"}}'
         return StringIO.StringIO(response)
+
+    def our_urlopen2(request, data):
+        return our_urlopen(request.get_full_url(), data)
+
     urllib.urlopen = our_urlopen
+    urllib2.urlopen = our_urlopen2
 
 
 class BaseTest(unittest.TestCase):
@@ -43,11 +60,23 @@ class BaseTest(unittest.TestCase):
     def assertEndsWith(self, a, b):
         self.assert_(a.endswith(b), "%r doesn't end with %r" % (a, b))
 
+    def get(self, url, prev=None, status=None, **kwargs):
+        if prev:
+            cookie = prev.headers["Set-Cookie"]
+            if cookie:
+                kwargs["Cookie"] = cookie
+        return self.app.get(url, status=status, headers=kwargs)
+
     def follow(self, response):
         self.assert_(response.status_int >= 300 and \
                          response.status_int < 400, response)
         location = response.location
-        return self.app.get(location)
+        return self.get(location, response)
+
+    def submit(self, form):
+        headers={"REFERER": form.response.request.url}
+        return self.follow(form.submit(headers=headers))
+
 
 class TestWWW(BaseTest):
 
@@ -66,19 +95,19 @@ class TestWWW(BaseTest):
         self.app = webtest.TestApp(www.app)
 
     def test_beta_signup(self):
-        res = self.app.get("/", status=200)
+        res = self.get("/", status=200)
         self.assertIn("Apologies for being coy", res)
 
         res.form["github"] = "foo bar"
-        res = self.follow(res.form.submit())
+        res = self.submit(res.form)
         self.assertIn("Invalid github username", res)
 
         res.form["github"] = "mdirolf"
-        res = self.follow(res.form.submit())
+        res = self.submit(res.form)
         self.assertIn("Thanks mdirolf", res)
 
         res.form["github"] = "mdirolf"
-        res = self.follow(res.form.submit())
+        res = self.submit(res.form)
         self.assertIn("Thanks mdirolf", res)
 
     def test_github_auth_without_email(self):
@@ -89,4 +118,27 @@ class TestWWW(BaseTest):
                   "/user/repos": []}
 
         # Just make sure we don't get an exception here...
-        self.follow(self.app.get("/auth/github?code=dummy"))
+        self.follow(self.get("/auth/github?code=dummy"))
+
+    def test_add_user_without_name(self):
+        global GITHUB
+        GITHUB = {"/user": {"name": "Mike Dirolf",
+                            "login": "mdirolf",
+                            "email": "mike@example.com"},
+                  "/user/orgs": [],
+                  "/user/repos": [{"name": "test",
+                                   "description": "My test repo"}],
+                  "/repos/mdirolf/test/collaborators": [{"login": "testuser"}],
+                  "/repos/mdirolf/test/contributors": [],
+                  "/repos/mdirolf/test/forks": [],
+                  "/repos/mdirolf/test/watchers": [],
+                  "_user/testuser": {"user": {"email": "test@example.com"}}}
+
+        res = self.follow(self.get("/auth/github?code=dummy"))
+        res = self.follow(self.get("/auth/fiesta?code=dummy", res))
+
+        self.assertIn("My test repo", res)
+        res = self.get("/repo/test", res)
+        res = res.form.submit()
+        res = self.submit(res.form)
+        self.assertIn("confirm your gitlist", res)

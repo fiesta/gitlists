@@ -120,7 +120,7 @@ def user_info(username):
             raise RateLimited()
         raise Error("Github error: " + repr(data["error"]))
     data = data["user"]
-    db.save_user(username, data.get("email", None), data["name"])
+    db.save_user(username, data.get("email", None), data.get("name", None))
     return data
 
 

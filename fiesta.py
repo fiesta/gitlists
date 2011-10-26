@@ -55,11 +55,11 @@ def finish_auth():
     token_response = token(flask.request.args["code"])
     flask.session["f"] = token_response["access_token"]
     flask.session["t"] = time.time()
-    return flask.redirect(flask.request.args["state"])
+    return flask.redirect(flask.request.args.get("state", INDEX))
 
 
 def request(url, data=None, json=False):
-    req = urllib2.Request("https://api.fiesta.cc/" + url)
+    req = urllib2.Request("https://api.fiesta.cc" + url)
     req.add_header("Authorization", "Bearer " + flask.session["f"])
     if json:
         req.add_header("Content-Type", "application/json")
