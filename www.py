@@ -16,6 +16,7 @@ import errors
 import fiesta
 import settings
 import sign
+import werkzeug_monkeypatch
 
 
 app = flask.Flask(__name__)
@@ -323,7 +324,7 @@ def favicon():
     return app.send_static_file("i/favicon.ico")
 
 
-@app.route(settings.error_uri)
+@app.route(settings.error_uri, methods=["GET", "POST"])
 def get_error():
     """
     Force an exception so we can test our error handling.
