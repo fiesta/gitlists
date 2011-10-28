@@ -6,9 +6,7 @@
 <h3><span class="under">Your repositories</span></h3>
 <ul>
   {% for repo in repos %}
-  {% if not repo.get("fork", False) %}
   <li><a href="/repo/{{ repo.name }}">{{ repo.name }}</a> {{ repo.description }}</li>
-  {% endif %}
   {% endfor %}
 </ul>
 {% for org in orgs %}
