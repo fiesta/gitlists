@@ -87,7 +87,7 @@ def beta_index():
 def beta_post():
     username = flask.request.form.get("github", "").strip()
     if not username or not re.match(r"^[a-zA-Z0-9\-]+$", username):
-        flask.flash("Invalid github username.")
+        flask.flash("Invalid GitHub username.")
     else:
         db.beta(username)
         flask.flash("Thanks %s, we'll let you know when the party's on!" % username)
@@ -250,7 +250,7 @@ def create_post():
     description = repo_obj["description"]
     welcome_message = {"subject": "Welcome to %s@gitlists.com" % repo,
                        "markdown": """
-[%s](%s) added you to a Gitlist for [%s](%s). Gitlists are dead-simple mailing lists for Github projects. You can create your own at [gitlists.com](https://gitlists.com).
+[%s](%s) added you to a Gitlist for [%s](%s). Gitlists are dead-simple mailing lists for GitHub projects. You can create your own at [gitlists.com](https://gitlists.com).
 
 Use %s@gitlists.com to email the list. Use the "List members" link below to see, add or remove list members. Use the "Unsubscribe" link below if you don't want to receive any messages from this list.
 """ % (user["login"], "http://github.com/" + user["login"],

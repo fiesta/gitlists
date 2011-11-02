@@ -93,7 +93,7 @@ def make_request(u, big=False):
     if "error" in res:
         if "Rate Limit" in res["error"]:
             raise RateLimited()
-        raise Error("Github error: " + repr(res["error"]))
+        raise Error("GitHub error: " + repr(res["error"]))
     return res
 
 
@@ -120,7 +120,7 @@ def user_info(username):
     if "error" in data:
         if "Rate Limit" in data["error"][0]:
             raise RateLimited()
-        raise Error("Github error: " + repr(data["error"]))
+        raise Error("GitHub error: " + repr(data["error"]))
     data = data["user"]
     db.save_user(username, data.get("email", None), data.get("name", None))
     return data

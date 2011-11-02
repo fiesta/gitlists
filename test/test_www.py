@@ -100,7 +100,7 @@ class TestWWW(BaseTest):
 
         res.form["github"] = "foo bar"
         res = self.submit(res.form)
-        self.assertIn("Invalid github username", res)
+        self.assertIn("Invalid GitHub username", res)
 
         res.form["github"] = "mdirolf"
         res = self.submit(res.form)
