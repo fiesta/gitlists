@@ -33,9 +33,10 @@ def our_urlopen(url, params=None):
 github.urlopen = our_urlopen
 
 
-www.fiesta_api = fiesta.FiestaAPISandbox(settings.fiesta_id,
-                                         settings.fiesta_secret,
-                                         "gitlists.com")
+sandbox = fiesta.FiestaAPISandbox(settings.fiesta_id,
+                                  settings.fiesta_secret,
+                                  "gitlists.com")
+www.fiesta_api = sandbox
 
 
 class BaseTest(unittest.TestCase):
@@ -77,6 +78,8 @@ class TestWWW(BaseTest):
     def setUp(self):
         global GITHUB
         GITHUB = {}
+
+        sandbox.reset()
 
         self.db = db.db
         for c in self.db.collection_names():
@@ -133,3 +136,8 @@ class TestWWW(BaseTest):
         res = res.form.submit()
         res = self.submit(res.form)
         self.assertIn("Gitlist has been created", res)
+
+        mailbox = sandbox.mailbox()
+        self.assertEqual(2, len(mailbox))
+        self.assertEqual(1, len(mailbox["test@example.com"]))
+        self.assertEqual(1, len(mailbox["mike@example.com"]))
