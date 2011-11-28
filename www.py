@@ -6,6 +6,7 @@ import sys
 import urlparse
 
 import decorator
+import fiesta
 import flask
 from paste.exceptions.errormiddleware import ErrorMiddleware
 
@@ -13,10 +14,14 @@ import daemon
 import db
 import github
 import errors
-import fiesta
 import settings
 import sign
 import werkzeug_monkeypatch
+
+
+fiesta_api = fiesta.FiestaAPI(settings.fiesta_id,
+                              settings.fiesta_secret,
+                              "gitlists.com")
 
 
 app = flask.Flask(__name__)
@@ -209,7 +214,6 @@ def repo_url(repo, org=None):
 @app.route("/create", methods=["GET"])
 @github.rate_limit
 @github.authorized
-@fiesta.authorize
 def create_get():
     repo = flask.request.args.get("repo")
     org = flask.request.args.get("org")
@@ -257,55 +261,30 @@ Use %s@gitlists.com to email the list. Use the "List members" link below to see,
        repo, github_url,
        repo)}
 
-    creator = {"group_name": repo,
-               "address": user["email"],
-               "display_name": user.get("name", ""),
-               "welcome_message": welcome_message}
-    response = fiesta.json_request("/group", {"creator": creator,
-                                              "domain": "gitlists.com",
-                                              "description": description})
-    pending = response["status"]["code"] == 202
-    group_id = response["data"]["group_id"]
+    group = fiesta_api.create_group(default_name=repo,
+                                    description=description)
+    # Gitlists are public, archived and have the repo name as a subject-prefix
+    group.add_application("public", group_name=repo)
+    group.add_application("subject_prefix", prefix=repo)
+    group.add_application("archive")
 
-    for app in flask.request.form.getlist("app"):
-        if app == "public":
-            data = {"application_id": "public",
-                    "options": {"group_name": repo}}
-            fiesta.json_request("/group/%s/application" % group_id, data)
-
-    # Subject prefix & archive are on by default, for now
-    data = {"application_id": "subject_prefix",
-            "options": {"prefix": repo}}
-    fiesta.json_request("/group/%s/application" % group_id, data)
-
-    data = {"application_id": "archive"}
-    fiesta.json_request("/group/%s/application" % group_id, data)
+    group.add_member(user["email"],
+                     display_name=user.get("name", ""),
+                     welcome_message=welcome_message)
 
     for address in addresses:
-        data = {"group_name": repo,
-                "address": address,
-                "welcome_message": welcome_message}
-        fiesta.json_request("/membership/" + group_id, data)
+        group.add_member(address, welcome_message=welcome_message)
 
-    failed = []
     for username in usernames:
         member_user = github.user_info(username)
         if not member_user.get("email", None):
-            failed.append(username)
             continue
 
-        data = {"group_name": repo,
-                "address": member_user["email"],
-                "display_name": member_user.get("name", ""),
-                "welcome_message": welcome_message}
-        fiesta.json_request("/membership/" + group_id, data)
-    if failed:
-        flask.flash("The following users could not be automatically added because their profile does not have a public email address - you'll need to add them manually: %s" % ", ".join(failed))
+        group.add_member(member_user["email"],
+                         display_name=member_user.get("name", ""),
+                         welcome_message=welcome_message)
 
-    if pending:
-        flask.flash("Please check your '%s' inbox to confirm your gitlist." % user["email"])
-    else:
-        flask.flash("You should receive a welcome message at '%s'." % user["email"])
+    flask.flash("Your Gitlist has been created - you should receive a welcome email at '%s'." % user["email"])
     return flask.redirect(INDEX)
 
 
@@ -314,17 +293,12 @@ def auth_github():
     return github.finish_auth()
 
 
-@app.route("/auth/fiesta")
-def auth_fiesta():
-    return fiesta.finish_auth()
-
-
 @app.route("/favicon.ico")
 def favicon():
     return app.send_static_file("i/favicon.ico")
 
 
-@app.route(settings.error_uri, methods=["GET", "POST"])
+@app.route("/error", methods=["GET", "POST"])
 def get_error():
     """
     Force an exception so we can test our error handling.

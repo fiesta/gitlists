@@ -9,6 +9,9 @@ import db
 import settings
 
 
+urlopen = urllib.urlopen
+
+
 INDEX = "/top_secret"
 
 
@@ -65,7 +68,7 @@ def token(code):
                                "client_secret": settings.gh_secret,
                                "scope": "user",
                                "code": code})
-    response = urlparse.parse_qs(urllib.urlopen(url, params).read())
+    response = urlparse.parse_qs(urlopen(url, params).read())
     return response.get("access_token", [None])[0]
 
 
@@ -82,7 +85,7 @@ def make_request(u, big=False):
     data = db.memoized(u)
     if not data:
         try:
-            data = urllib.urlopen(u).read()
+            data = urlopen(u).read()
             db.memoize(u, data)
         except IOError, e:
             if e.args[1] == 401:
@@ -116,7 +119,7 @@ def user_info(username):
         return existing
 
     u = "http://github.com/api/v2/json/user/show/" + username
-    data = json.loads(urllib.urlopen(u).read())
+    data = json.loads(urlopen(u).read())
     if "error" in data:
         if "Rate Limit" in data["error"][0]:
             raise RateLimited()

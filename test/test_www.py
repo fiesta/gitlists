@@ -4,44 +4,38 @@ import StringIO
 import sys
 import unittest
 import urllib
-import urllib2
 sys.path[0:0] = [""]
 
+import fiesta
 import webtest
 
 import db
+import github
+import settings
 import www
 
 
 GITHUB = {}
 
 
-def monkey_patch_urllib():
-    def our_urlopen(url, params=None):
-        response = ""
-        gh_match = re.match(r"^https://api\.github\.com(/.*)\?.+$", url)
-        if url.startswith("https://github.com/login/oauth/access_token"):
-            response = 'access_token=dummy'
-        elif url.startswith("http://github.com/api/v2/json/user/show/"):
-            _, _, handle = url.rpartition("/")
-            response = json.dumps(GITHUB.get("_user/" + handle))
-        elif gh_match:
-            response = json.dumps(GITHUB.get(gh_match.group(1)))
-        elif url.startswith("https://api.fiesta.cc/token"):
-            response = '{"access_token": "dummy"}'
-        # TODO better mocking here :)
-        elif url.startswith("https://api.fiesta.cc/group"):
-            response = '{"status": {"code": 202}, "data": {"group_id": "dummy"}}'
-        # TODO and here :)
-        elif url.startswith("https://api.fiesta.cc/membership"):
-            response = '{"status": {"code": 202}, "data": {"group_id": "dummy"}}'
-        return StringIO.StringIO(response)
+# A little monkey-patching
+def our_urlopen(url, params=None):
+    response = ""
+    gh_match = re.match(r"^https://api\.github\.com(/.*)\?.+$", url)
+    if url.startswith("https://github.com/login/oauth/access_token"):
+        response = 'access_token=dummy'
+    elif url.startswith("http://github.com/api/v2/json/user/show/"):
+        _, _, handle = url.rpartition("/")
+        response = json.dumps(GITHUB.get("_user/" + handle))
+    elif gh_match:
+        response = json.dumps(GITHUB.get(gh_match.group(1)))
+    return StringIO.StringIO(response)
+github.urlopen = our_urlopen
 
-    def our_urlopen2(request, data):
-        return our_urlopen(request.get_full_url(), data)
 
-    urllib.urlopen = our_urlopen
-    urllib2.urlopen = our_urlopen2
+www.fiesta_api = fiesta.FiestaAPISandbox(settings.fiesta_id,
+                                         settings.fiesta_secret,
+                                         "gitlists.com")
 
 
 class BaseTest(unittest.TestCase):
@@ -83,8 +77,6 @@ class TestWWW(BaseTest):
     def setUp(self):
         global GITHUB
         GITHUB = {}
-
-        monkey_patch_urllib()
 
         self.db = db.db
         for c in self.db.collection_names():
@@ -135,10 +127,9 @@ class TestWWW(BaseTest):
                   "_user/testuser": {"user": {"email": "test@example.com"}}}
 
         res = self.follow(self.get("/auth/github?code=dummy"))
-        res = self.follow(self.get("/auth/fiesta?code=dummy", res))
 
         self.assertIn("My test repo", res)
         res = self.get("/repo/test", res)
         res = res.form.submit()
         res = self.submit(res.form)
-        self.assertIn("confirm your gitlist", res)
+        self.assertIn("Gitlist has been created", res)
