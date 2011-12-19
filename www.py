@@ -252,14 +252,15 @@ def create_post():
 
     github_url = "https://github.com/%s/%s" % (org or user["login"], repo)
     description = repo_obj["description"]
-    welcome_message = {"subject": "Welcome to %s@gitlists.com" % repo,
+    welcome_message = {"subject": "Invitation to %s@gitlists.com" % repo,
                        "markdown": """
-[%s](%s) added you to a Gitlist for [%s](%s). Gitlists are dead-simple mailing lists for GitHub projects. You can create your own at [gitlists.com](https://gitlists.com).
+[%s](%s) invited you to a [Gitlist](https://gitlists.com) for [%s](%s). Gitlists are dead-simple mailing lists for GitHub projects.
 
-Use %s@gitlists.com to email the list. Use the "List members" link below to see, add or remove list members. Use the "Unsubscribe" link below if you don't want to receive any messages from this list.
+[Click here]($invite_url) to join the list. If you don't want to join, just ignore this message.
+
+Have a great day!
 """ % (user["login"], "http://github.com/" + user["login"],
-       repo, github_url,
-       repo)}
+       repo, github_url)}
 
     group = fiesta_api.create_group(default_name=repo,
                                     description=description)
@@ -273,7 +274,7 @@ Use %s@gitlists.com to email the list. Use the "List members" link below to see,
                      welcome_message=welcome_message)
 
     for address in addresses:
-        group.add_member(address, welcome_message=welcome_message)
+        group.add_member(address, welcome_message=welcome_message, send_invite=True)
 
     for username in usernames:
         member_user = github.user_info(username)
@@ -282,7 +283,8 @@ Use %s@gitlists.com to email the list. Use the "List members" link below to see,
 
         group.add_member(member_user["email"],
                          display_name=member_user.get("name", ""),
-                         welcome_message=welcome_message)
+                         welcome_message=welcome_message,
+                         send_invite=True)
 
     flask.flash("Your Gitlist has been created - you should receive a welcome email at '%s'." % user["email"])
     return flask.redirect(INDEX)
