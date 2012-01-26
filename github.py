@@ -12,9 +12,6 @@ import settings
 urlopen = urllib.urlopen
 
 
-INDEX = "/top_secret"
-
-
 class Error(Exception):
     pass
 
@@ -41,7 +38,7 @@ def reauthorize(view, *args, **kwargs):
         return view(*args, **kwargs)
     except Reauthorize:
         del flask.session["g"]
-        return flask.redirect(INDEX)
+        return flask.redirect("/")
 
 
 @decorator.decorator
@@ -74,7 +71,7 @@ def token(code):
 
 def finish_auth():
     flask.session["g"] = token(flask.request.args["code"])
-    return flask.redirect(INDEX)
+    return flask.redirect("/")
 
 
 def make_request(u, big=False):
@@ -135,40 +132,36 @@ def repos(org=None):
     return make_request("/user/repos")
 
 
-def filtered(c, i):
-    return [x["login"] for x in c if x["login"] not in i]
-
-
-def user_list(url, ignore):
+def user_list(url):
     c = make_request(url, True)
     if not c or isinstance(c, dict):
         return []
-    return filtered(c, ignore)
+    return [x["login"] for x in c]
 
 
-def collaborators(user, name, ignore):
+def collaborators(user, name):
     # TODO this call doesn't seem to be working for some reason...
-    return user_list("/repos/%s/%s/collaborators" % (user, name), ignore)
+    return user_list("/repos/%s/%s/collaborators" % (user, name))
 
 
-def contributors(user, name, ignore):
-    return user_list("/repos/%s/%s/contributors" % (user, name), ignore)
+def contributors(user, name):
+    return user_list("/repos/%s/%s/contributors" % (user, name))
 
 
-def forkers(user, name, ignore):
+def forkers(user, name):
     forks = make_request("/repos/%s/%s/forks" % (user, name), True)
     if not forks or isinstance(forks, dict):
         return []
-    return filtered([f["owner"] for f in forks], ignore)
+    return [f["owner"]["login"] for f in forks]
 
 
-def watchers(user, name, ignore):
-    return user_list("/repos/%s/%s/watchers" % (user, name), ignore)
+def watchers(user, name):
+    return user_list("/repos/%s/%s/watchers" % (user, name))
 
 
 def orgs():
     return make_request("/user/orgs")
 
 
-def members(org, ignore):
-    return filtered(make_request("/orgs/%s/members" % org, True), ignore)
+def members(org):
+    return user_list("/orgs/%s/members" % org)

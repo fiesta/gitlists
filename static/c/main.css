@@ -2,19 +2,21 @@ body {
     font-family: Consolas, "Bitstream Vera Sans Mono", "Andale Mono", Monaco, "DejaVu Sans Mono", "Lucida Console", monospace;
     padding: 1.5em 3em;
     letter-spacing: 0.1em;
+    font-size: 1em;
+    line-height: 1.3em;
+}
+ul {
+    margin: 0 0;
 }
 ul li {
     margin-top: 0.75em;
+    list-style-type: none;
 }
 #f {
-    padding-top: 3em;
+    padding-top: 2em;
 }
 #copy {
     float: right;
-}
-.uname {
-    padding: 0 0.5em 0 1em;
-    cursor: pointer;
 }
 h1, h2, h3 {
     font-weight: normal;
@@ -22,17 +24,12 @@ h1, h2, h3 {
 h3 {
     margin-top: 2em;
 }
-.create {
-    margin: 1em 0;
-    font-size: 16px;
-}
 .flashes {
     margin: 0 0;
 }
 .flashes li {
     list-style: none;
     color: #B00;
-    font-size: 16px;
 }
 .top {
     margin-top: 3em;

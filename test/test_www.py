@@ -90,22 +90,6 @@ class TestWWW(BaseTest):
 
         self.app = webtest.TestApp(www.app)
 
-    def test_beta_signup(self):
-        res = self.get("/", status=200)
-        self.assertIn("Apologies for being coy", res)
-
-        res.form["github"] = "foo bar"
-        res = self.submit(res.form)
-        self.assertIn("Invalid GitHub username", res)
-
-        res.form["github"] = "mdirolf"
-        res = self.submit(res.form)
-        self.assertIn("Thanks mdirolf", res)
-
-        res.form["github"] = "mdirolf"
-        res = self.submit(res.form)
-        self.assertIn("Thanks mdirolf", res)
-
     def test_github_auth_without_email(self):
         global GITHUB
         GITHUB = {"/user": {"name": "Mike Dirolf", "login": "mdirolf"},

@@ -36,13 +36,6 @@ if settings.env == "prod":
                                    smtp_server=settings.relay_host)
 
 
-# If you looked through the source to find this link, then you deserve
-# access to the beta :).
-#
-# But, if you don't mind, keep it on the DL. It's top secret.
-INDEX = "/top_secret"
-
-
 def gen_xsrf(actions):
     xsrf = {}
     for action in actions:
@@ -77,26 +70,10 @@ def check_xsrf(action, timeout=60*60):
             return flask.abort(403, "Bad XSRF token.")
         elif status == sign.TIMEOUT:
             flask.flash("Your session timed out, please try again.")
-            redirect = flask.request.headers.get("REFERER", INDEX)
+            redirect = flask.request.headers.get("REFERER", "/")
             return flask.redirect(redirect)
         return view(*args, **kwargs)
     return decorator.decorator(check_xsrf)
-
-
-@app.route("/")
-def beta_index():
-    return flask.render_template("beta_index.html")
-
-
-@app.route("/beta", methods=["POST"])
-def beta_post():
-    username = flask.request.form.get("github", "").strip()
-    if not username or not re.match(r"^[a-zA-Z0-9\-]+$", username):
-        flask.flash("Invalid GitHub username.")
-    else:
-        db.beta(username)
-        flask.flash("Thanks %s, we'll let you know when the party's on!" % username)
-    return flask.redirect("/")
 
 
 @app.route("/rate_limited")
@@ -104,7 +81,7 @@ def rate_limited():
     return flask.render_template("rate_limited.html")
 
 
-@app.route(INDEX)
+@app.route("/")
 @github.reauthorize
 @github.rate_limit
 def index():
@@ -171,11 +148,12 @@ def repo_create(name, org=None):
     username = org and org["login"] or user["login"]
 
     to_invite = set()
-    to_invite += github.collaborators(username, name)
-    to_invite += github.contributors(username, name)
-    to_invite += github.members(org["login"])
-    to_invite += github.forkers(username, name)
-    to_invite += github.watchers(username, name)
+    to_invite.update(github.collaborators(username, name))
+    to_invite.update(github.contributors(username, name))
+    if org:
+        to_invite.update(github.members(org["login"]))
+    to_invite.update(github.forkers(username, name))
+    to_invite.update(github.watchers(username, name))
     to_invite -= set([user["login"], "invalid-email-address"])
 
     description = repo["description"]
@@ -211,10 +189,8 @@ Have a great day!
 Have a great day!
 """ % (user["login"], "http://github.com/" + user["login"],
        repo["name"], github_url)}
-    for address in addresses:
-        group.add_member(address, welcome_message=welcome_message, send_invite=True)
 
-    for username in usernames:
+    for username in to_invite:
         member_user = github.user_info(username)
         if not member_user.get("email", None):
             continue
@@ -225,11 +201,7 @@ Have a great day!
                          send_invite=True)
 
     flask.flash("Your Gitlist has been created - check your email at '%s'." % user["email"])
-    return flask.redirect(INDEX)
-
-
-def repo_url(repo, org=None):
-    return "/repo/%s%s" % (org and org + "/" or "", repo)
+    return flask.redirect("/")
 
 
 @app.route("/repo/<name>", methods=["POST"])

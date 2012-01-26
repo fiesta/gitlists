@@ -1,13 +1,11 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h1><a href="/">Home</a> > {{ repo.name }}@gitlists.com</h1>
-<h2>Almost done!</h2>
-<p>Click "Let's Go!" and your list will be created. A low-pressure invitation will be sent to {% if org %}any members of {{ org.login }} and {% endif %}any of {{ repo.name }}'s collaborators, contributors, forkers, and watchers who have a public GitHub email address. If they decide to join the list they'll just need to click a link in their invitation email.</p>
+<h2><strong>{{ repo.name }}</strong>@gitlists.com</h2>
+<p>Click "<em>Party on</em>" to create the list. A low-pressure invitation will be sent to {% if org %}any members of <strong>{{ org.login }}</strong> and {% endif %}any of <strong>{{ repo.name }}</strong>'s collaborators, contributors, forkers, and watchers who have a public GitHub email address. To join they'll just click a link in the email.</p>
 
-<p>You'll also receive an email with a link to your list page. You might want to add that page to your project's README &ndash; it's the place where new members will need to go to sign up.</p>
 <form name="create" method="POST">
   <input type="hidden" name="x" value="{{ xsrf.create }}">
-  <input class="create" type="submit" value="Let's Go!">
+  <input type="submit" value="Party on">
 </form>
 {% endblock %}

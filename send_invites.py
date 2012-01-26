@@ -24,10 +24,10 @@ Content-Type: text/plain
 
 Hi %s,
 
-Thanks for joining the Gitlists beta. Gitlists is a simple way to communicate about your GitHub projects. You can give it a try here:
-https://gitlists.com/top_secret
+Thanks for signing up for Gitlists. Gitlists is a simple way to communicate about your GitHub projects. You can give it a try here:
+https://gitlists.com
 
-We always love feedback, but during the beta it's especially important. This is my personal address so please reply with any questions, feedback, or suggestions.
+We love feedback; this is my personal address so please reply with any questions, feedback, or suggestions.
 
 Hope you're having a great day,
 Mike
