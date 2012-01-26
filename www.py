@@ -127,7 +127,6 @@ def repo_data(name, org_name=None):
     return None
 
 
-@github.authorized
 def repo_page(name, org=None):
     user = github.current_user()
     repo = repo_data(name, org and org["login"])
@@ -135,42 +134,8 @@ def repo_page(name, org=None):
     if not repo:
         return flask.abort(404, "No matching repo")
 
-    username = org and org["login"] or user["login"]
-
-    ignore = set([user["login"], "invalid-email-address"])
-
-    def query(function):
-        result = function(username, name, ignore)
-        ignore.update(result)
-        return result
-
-    # Note that order of these calls matters as we are updating `ignore`.
-    collaborators = query(github.collaborators)
-    contributors = query(github.contributors)
-
-    org_members = []
-    if org:
-        org_members = github.members(org["login"], ignore)
-        ignore.update(org_members)
-
-    forkers = query(github.forkers)
-    watchers = query(github.watchers)
-
-    n = len([x for x in [collaborators, contributors,
-                         org_members, forkers, watchers] if x])
-
-    if n == 1:
-        n = "1"
-    elif n:
-        n = "1-%s" % n
-
-    return flask.render_template("repo.html", user=user, n=n,
-                                 repo=repo, org=org,
-                                 collaborators=collaborators,
-                                 contributors=contributors,
-                                 org_members=org_members,
-                                 forkers=forkers,
-                                 watchers=watchers)
+    return flask.render_template("repo.html", repo=repo, org=org,
+                                 **gen_xsrf(["create"]))
 
 
 @app.route("/repo/<name>")
@@ -196,63 +161,48 @@ def org_repo(org_handle, name):
     return flask.abort(404, "No matching org")
 
 
-def valid_email(e):
-    """Just basic safety"""
-    lcl, _, host = e.partition("@")
-    if not lcl or not host or "@" in host or "." not in host:
-        return False
-    for char in "()[]\;:,<>":
-        if char in e:
-            return False
-    return True
-
-
-def repo_url(repo, org=None):
-    return "/repo/%s%s" % (org and org + "/" or "", repo)
-
-
-@app.route("/create", methods=["GET"])
-@github.rate_limit
-@github.authorized
-def create_get():
-    repo = flask.request.args.get("repo")
-    org = flask.request.args.get("org")
-
-    usernames = flask.request.args.getlist("username")
-    addresses = flask.request.args.getlist("address")
-    addresses = [a for a in addresses if valid_email(a)]
-
-    if not addresses and not usernames:
-        flask.flash("Please select some list members before creating your list.")
-        return flask.redirect(repo_url(repo, org))
-
-    return flask.render_template("create.html", user=github.current_user(),
-                                 repo=repo, org=org, usernames=usernames,
-                                 addresses=addresses, **gen_xsrf(["create"]))
-
-
-@app.route("/create", methods=["POST"])
-@github.rate_limit
-@github.authorized
-@check_xsrf("create")
-def create_post():
+def repo_create(name, org=None):
     user = github.current_user()
+    repo = repo_data(name, org and org["login"])
 
-    repo = flask.request.form.get("repo")
-    org = flask.request.form.get("org")
-    repo_obj = repo_data(repo, org)
+    if not repo:
+        return flask.abort(404, "No matching repo")
 
-    usernames = flask.request.form.getlist("username")
-    addresses = flask.request.form.getlist("address")
-    addresses = dict([(a, None) for a in addresses if valid_email(a)])
+    username = org and org["login"] or user["login"]
 
-    if not addresses and not usernames:
-        flask.flash("Please select some list members before creating your list.")
-        return flask.redirect(repo_url(repo, org))
+    to_invite = set()
+    to_invite += github.collaborators(username, name)
+    to_invite += github.contributors(username, name)
+    to_invite += github.members(org["login"])
+    to_invite += github.forkers(username, name)
+    to_invite += github.watchers(username, name)
+    to_invite -= set([user["login"], "invalid-email-address"])
 
-    github_url = "https://github.com/%s/%s" % (org or user["login"], repo)
-    description = repo_obj["description"]
-    welcome_message = {"subject": "Invitation to %s@gitlists.com" % repo,
+    description = repo["description"]
+    group = fiesta_api.create_group(default_name=repo["name"],
+                                    description=description)
+
+    # Gitlists are public, archived and have the repo name as a subject-prefix
+    group.add_application("public", group_name=repo["name"])
+    group.add_application("subject_prefix", prefix=repo["name"])
+    group.add_application("archive")
+
+    github_url = "https://github.com/%s/%s" % (org or user["login"], repo["name"])
+    welcome_message = {"subject": "Welcome to %s@gitlists.com" % repo["name"],
+                       "markdown": """
+Your [Gitlist](https://gitlists.com) for [%s](%s) has been created.
+
+[Click here]($list_url) to check out the list page. That page is where new members will need to go to join the list, so you might want to add it to your repo's README.
+
+If you have any questions, send us an email at support@corp.fiesta.cc.
+
+Have a great day!
+""" % (repo["name"], github_url)}
+    group.add_member(user["email"],
+                     display_name=user.get("name", ""),
+                     welcome_message=welcome_message)
+
+    welcome_message = {"subject": "Invitation to %s@gitlists.com" % repo["name"],
                        "markdown": """
 [%s](%s) invited you to a [Gitlist](https://gitlists.com) for [%s](%s). Gitlists are dead-simple mailing lists for GitHub projects.
 
@@ -260,19 +210,7 @@ def create_post():
 
 Have a great day!
 """ % (user["login"], "http://github.com/" + user["login"],
-       repo, github_url)}
-
-    group = fiesta_api.create_group(default_name=repo,
-                                    description=description)
-    # Gitlists are public, archived and have the repo name as a subject-prefix
-    group.add_application("public", group_name=repo)
-    group.add_application("subject_prefix", prefix=repo)
-    group.add_application("archive")
-
-    group.add_member(user["email"],
-                     display_name=user.get("name", ""),
-                     welcome_message=welcome_message)
-
+       repo["name"], github_url)}
     for address in addresses:
         group.add_member(address, welcome_message=welcome_message, send_invite=True)
 
@@ -286,8 +224,37 @@ Have a great day!
                          welcome_message=welcome_message,
                          send_invite=True)
 
-    flask.flash("Your Gitlist has been created - you should receive a welcome email at '%s'." % user["email"])
+    flask.flash("Your Gitlist has been created - check your email at '%s'." % user["email"])
     return flask.redirect(INDEX)
+
+
+def repo_url(repo, org=None):
+    return "/repo/%s%s" % (org and org + "/" or "", repo)
+
+
+@app.route("/repo/<name>", methods=["POST"])
+@github.rate_limit
+@github.authorized
+@check_xsrf("create")
+def create_repo(name):
+    if "g" not in flask.session:
+        return flask.abort(403, "No user")
+    return repo_create(name)
+
+
+@app.route("/repo/<org_handle>/<name>", methods=["POST"])
+@github.rate_limit
+@github.authorized
+@check_xsrf("create")
+def create_org_repo(org_handle, name):
+    if "g" not in flask.session:
+        return flask.abort(403, "No user")
+
+    for org in github.orgs():
+        if org["login"] == org_handle:
+            return repo_create(name, org)
+
+    return flask.abort(404, "No matching org")
 
 
 @app.route("/auth/github")

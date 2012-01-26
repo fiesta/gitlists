@@ -2,64 +2,12 @@
 
 {% block content %}
 <h1><a href="/">Home</a> > {{ repo.name }}@gitlists.com</h1>
-<h2>Who should be a member of the gitlist?</h2>
-<form name="create" method="GET" action="/create">
-  {% if collaborators or contributors or org_members or forkers or watchers %}
-  <div class="yui3-g">
-  {% if collaborators %}
-  <div class="yui3-u-{{ n }}">
-    <h3><span class="under">Collaborators</span> (Select <a href="#" class="select-all">All</a> | <a href="#" class="select-none">None</a>)</h3>
-  {% for member in collaborators %}
-  <p><input type="checkbox" name="username" value="{{ member }}" checked="checked"><span class="uname">{{ member }}</span>[<a href="http://github.com/{{ member }}">github</a>]</p>
-  {% endfor %}
-  </div>
-  {% endif %}
-  {% if contributors %}
-  <div class="yui3-u-{{ n }}">
-  <h3><span class="under">Contributors</span> (Select <a href="#" class="select-all">All</a> | <a href="#" class="select-none">None</a>)</h3>
-  {% for member in contributors %}
-  <p><input type="checkbox" name="username" value="{{ member }}" checked="checked"><span class="uname">{{ member }}</span>[<a href="http://github.com/{{ member }}">github</a>]</p>
-  {% endfor %}
-  </div>
-  {% endif %}
-  {% if org_members %}
-  <div class="yui3-u-{{ n }}">
-  <h3><span class="under">{{ org.login }} members</span> (Select <a href="#" class="select-all">All</a> | <a href="#" class="select-none">None</a>)</h3>
-  {% for member in org_members %}
-  <p><input type="checkbox" name="username" value="{{ member }}"><span class="uname">{{ member }}</span>[<a href="http://github.com/{{ member }}">github</a>]</p>
-  {% endfor %}
-  </div>
-  {% endif %}
-  {% if forkers %}
-  <div class="yui3-u-{{ n }}">
-  <h3><span class="under">Forkers</span> (Select <a href="#" class="select-all">All</a> | <a href="#" class="select-none">None</a>)</h3>
-  {% for member in forkers[:50] %}
-  <p><input type="checkbox" name="username" value="{{ member }}"><span class="uname">{{ member }}</span>[<a href="http://github.com/{{ member }}">github</a>]</p>
-  {% endfor %}
-  </div>
-  {% endif %}
-  {% if watchers %}
-  <div class="yui3-u-{{ n }}">
-  <h3><span class="under">Watchers</span> (Select <a href="#" class="select-all">All</a> | <a href="#" class="select-none">None</a>)</h3>
-  {% for member in watchers[:50] %}
-  <p><input type="checkbox" name="username" value="{{ member }}"><span class="uname">{{ member }}</span>[<a href="http://github.com/{{ member }}">github</a>]</p>
-  {% endfor %}
-  </div>
-  {% endif %}
-  </div>
-  <h3><span class="under">Other list members</span></h3>
-  <p>Enter <span class="freeform-text">an email address</span>. <a class="add_input" href="#">Click here</a> to add another input.</p>
-  {% else %}
-  <p class="top">This repo doesn't have any collaborators, contributors, forkers or watchers, so you'll need to add addresses manually.</p>
-  <p>Enter an email address below to include it on the gitlist. <a class="add_input" href="#">Click here</a> to add another input.</p>
-  {% endif %}
-  <div class="freeform">
-    <p><input type="text" name="address"></p>
-  </div>
-  <input type="hidden" name="repo" value="{{ repo.name }}">
-  {% if org %}
-  <input type="hidden" name="org" value="{{ org.login }}">
-  {% endif %}
-  <input class="create" type="submit" value="configure & create">
+<h2>Almost done!</h2>
+<p>Click "Let's Go!" and your list will be created. A low-pressure invitation will be sent to {% if org %}any members of {{ org.login }} and {% endif %}any of {{ repo.name }}'s collaborators, contributors, forkers, and watchers who have a public GitHub email address. If they decide to join the list they'll just need to click a link in their invitation email.</p>
+
+<p>You'll also receive an email with a link to your list page. You might want to add that page to your project's README &ndash; it's the place where new members will need to go to sign up.</p>
+<form name="create" method="POST">
+  <input type="hidden" name="x" value="{{ xsrf.create }}">
+  <input class="create" type="submit" value="Let's Go!">
 </form>
 {% endblock %}

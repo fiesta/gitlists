@@ -10,6 +10,7 @@ import fiesta
 import webtest
 
 import db
+import errors
 import github
 import settings
 import www
@@ -133,7 +134,6 @@ class TestWWW(BaseTest):
 
         self.assertIn("My test repo", res)
         res = self.get("/repo/test", res)
-        res = res.form.submit()
         res = self.submit(res.form)
         self.assertIn("Gitlist has been created", res)
 
@@ -141,3 +141,6 @@ class TestWWW(BaseTest):
         self.assertEqual(2, len(mailbox))
         self.assertEqual(1, len(mailbox["test@example.com"]))
         self.assertEqual(1, len(mailbox["mike@example.com"]))
+
+    def test_github_rate_limiting(self):
+        raise errors.TODO()
