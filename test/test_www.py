@@ -22,7 +22,7 @@ GITHUB = {}
 RATE_LIMITED = False
 
 
-www.SLEEP_INTERVAL = 0.1
+www.SLEEP_INTERVAL = 0.01
 
 
 # A little monkey-patching
@@ -40,6 +40,8 @@ def our_urlopen(url, params=None):
         response = json.dumps(GITHUB.get("_user/" + handle))
     elif gh_match:
         response = json.dumps(GITHUB.get(gh_match.group(1)))
+    if not response:
+        raise Exception("No reponse %r" % url)
     return StringIO.StringIO(response)
 github.urlopen = our_urlopen
 
@@ -103,6 +105,11 @@ class TestWWW(BaseTest):
 
         self.app = webtest.TestApp(www.app)
 
+    def tearDown(self):
+        for c in self.db.collection_names():
+            if not c.startswith("system."):
+                self.db.drop_collection(c)
+
     def test_github_auth_without_email(self):
         global GITHUB
         GITHUB = {"/user": {"name": "Mike Dirolf", "login": "mdirolf"},
@@ -134,11 +141,72 @@ class TestWWW(BaseTest):
         res = self.submit(res.form)
         self.assertIn("Gitlist has been created", res)
 
-        time.sleep(0.7)
+        time.sleep(0.2)
         mailbox = sandbox.mailbox()
         self.assertEqual(2, len(mailbox))
         self.assertEqual(1, len(mailbox["test@example.com"]))
         self.assertEqual(1, len(mailbox["mike@example.com"]))
+
+    def test_create_multiple(self):
+        global GITHUB
+        GITHUB = {"/user": {"name": "Mike Dirolf",
+                            "login": "mdirolf",
+                            "email": "mike@example.com"},
+                  "/user/orgs": [],
+                  "/user/repos": [{"name": "test",
+                                   "description": "My test repo"}],
+                  "/repos/mdirolf/test/collaborators": [{"login": "testuser"}],
+                  "/repos/mdirolf/test/contributors": [],
+                  "/repos/mdirolf/test/forks": [{"owner": {"login": "another"}}],
+                  "/repos/mdirolf/test/watchers": [],
+
+                  "/orgs/fiesta/repos": [{"name": "blah",
+                                          "description": "Some crap"}],
+                  "/orgs/fiesta/members": [{"login": "jdirolf"}],
+                  "/repos/fiesta/blah/collaborators": [],
+                  "/repos/fiesta/blah/contributors": [{"login": "another"}],
+                  "/repos/fiesta/blah/forks": [],
+                  "/repos/fiesta/blah/watchers": [],
+
+                  "_user/testuser": {"user": {"email": "test@example.com"}},
+                  "_user/another": {"user": {"email": "another@example.com"},
+                                    "name": "Some Guy"}}
+
+        res = self.follow(self.get("/auth/github?code=dummy"))
+
+        self.assertIn("My test repo", res)
+        res = self.get("/repo/test", res)
+        res = self.submit(res.form)
+        self.assertIn("Gitlist has been created", res)
+
+        mailbox = sandbox.mailbox()
+        self.assertEqual(1, len(mailbox))
+        self.assertEqual(1, len(mailbox['mike@example.com']))
+
+        GITHUB["/user"] = {"name": "Jim Dirolf",
+                           "login": "jdirolf",
+                           "email": "jim@example.com"}
+        GITHUB["/user/orgs"] = [{"login": "fiesta"}]
+        GITHUB["/user/repos"] = []
+
+        res = self.follow(self.get("/auth/github?code=dummy"))
+
+        self.assertIn("Some crap", res)
+        res = self.get("/repo/fiesta/blah", res)
+        res = self.submit(res.form)
+        self.assertIn("Gitlist has been created", res)
+
+        time.sleep(0.5)
+        mailbox = sandbox.mailbox()
+        self.assertEqual(4, len(mailbox))
+        self.assertEqual(1, len(mailbox["mike@example.com"]))
+        self.assertEqual(1, len(mailbox['jim@example.com']))
+        self.assertEqual(1, len(mailbox["test@example.com"]))
+        self.assertEqual(2, len(mailbox["another@example.com"]))
+        self.assertStartsWith(mailbox["another@example.com"][0]["text"],
+                              "[mdirolf](http://github.com/mdirolf) invited you to a [Gitlist](https://gitlists.com) for [test](https://github.com/mdirolf/test).")
+        self.assertStartsWith(mailbox["another@example.com"][1]["text"],
+                              "[jdirolf](http://github.com/jdirolf) invited you to a [Gitlist](https://gitlists.com) for [blah](https://github.com/fiesta/blah).")
 
     def test_create_own_existing(self):
         global GITHUB
@@ -161,7 +229,7 @@ class TestWWW(BaseTest):
         res = self.submit(res.form)
         self.assertIn("Gitlist has been created", res)
 
-        time.sleep(0.7)
+        time.sleep(0.2)
         mailbox = sandbox.mailbox()
         self.assertEqual(2, len(mailbox))
         self.assertEqual(1, len(mailbox["test@example.com"]))
@@ -191,7 +259,7 @@ class TestWWW(BaseTest):
         res = self.submit(res.form)
         self.assertIn("Gitlist has been created", res)
 
-        time.sleep(0.7)
+        time.sleep(0.2)
         mailbox = sandbox.mailbox()
         self.assertEqual(2, len(mailbox))
         self.assertEqual(1, len(mailbox["test@example.com"]))

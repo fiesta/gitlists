@@ -118,7 +118,7 @@ def user_info(username):
         return existing, True
 
     u = "http://github.com/api/v2/json/user/show/" + username
-    data = json.loads(urlopen(u).read())
+    data = json.load(urlopen(u))
     if "error" in data:
         raise Error("GitHub error: " + repr(data["error"]))
     data = data["user"]
