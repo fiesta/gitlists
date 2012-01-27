@@ -170,17 +170,17 @@ def repo_create(name, org=None):
     group.add_application("subject_prefix", prefix=repo["name"])
     group.add_application("archive")
 
-    github_url = "https://github.com/%s/%s" % (org or user["login"], repo["name"])
+    github_url = "https://github.com/%s/%s" % (username, repo["name"])
     welcome_message = {"subject": "Welcome to %s@gitlists.com" % repo["name"],
                        "markdown": """
 Your [Gitlist](https://gitlists.com) for [%s](%s) has been created.
 
-[Click here]($list_url) to check out the list page. That page is where new members will need to go to join the list, so you might want to add it to your repo's README.
+The [list page](https://fiesta.cc/list/%s) is the archive *and* where new members will need to go to join the list, so you might want to add it to your repo's README.
 
 If you have any questions, send us an email at support@corp.fiesta.cc.
 
 Have a great day!
-""" % (repo["name"], github_url)}
+""" % (repo["name"], github_url, group.id)}
     group.add_member(user["email"],
                      display_name=user.get("name", ""),
                      welcome_message=welcome_message)
