@@ -3,6 +3,8 @@
 import json
 import re
 import sys
+import threading
+import time
 import urlparse
 
 import decorator
@@ -34,6 +36,52 @@ if settings.env == "prod":
                                    from_address="noreply@gitlists.com",
                                    error_subject_prefix="[Gitlists] Error ",
                                    smtp_server=settings.relay_host)
+
+
+SLEEP_INTERVAL = 1
+
+class SendInvites(threading.Thread):
+    '''
+    We send invites from a separate thread to try to avoid going over
+    GH's rate limit (60 calls per minute for V2 API).
+    '''
+
+    def run(self):
+        while True:
+            invite = db.next_invite()
+            if not invite:
+                time.sleep(SLEEP_INTERVAL)
+                continue
+
+            repo_name = invite["repo_name"]
+            github_url = invite["github_url"]
+            inviter = invite["inviter"]
+            username = invite["username"]
+            group = fiesta.FiestaGroup.from_id(fiesta_api, invite["group_id"])
+
+            welcome_message = {"subject": "Invitation to %s@gitlists.com" % repo_name,
+                               "markdown": """
+[%s](%s) invited you to a [Gitlist](https://gitlists.com) for [%s](%s). Gitlists are dead-simple mailing lists for GitHub projects.
+
+[Click here]($invite_url) to join the list. If you don't want to join, just ignore this message.
+
+Have a great day!
+""" % (inviter, "http://github.com/" + inviter, repo_name, github_url)}
+
+            user, cache = github.user_info(username)
+            if user.get("email", None):
+                group.add_member(user["email"],
+                                 display_name=user.get("name", ""),
+                                 welcome_message=welcome_message,
+                                 send_invite=True)
+
+            if not cache:
+                time.sleep(SLEEP_INTERVAL)
+
+
+# Invite thread
+send_invites = SendInvites()
+send_invites.start()
 
 
 def gen_xsrf(actions):
@@ -185,25 +233,9 @@ Have a great day!
                      display_name=user.get("name", ""),
                      welcome_message=welcome_message)
 
-    welcome_message = {"subject": "Invitation to %s@gitlists.com" % repo["name"],
-                       "markdown": """
-[%s](%s) invited you to a [Gitlist](https://gitlists.com) for [%s](%s). Gitlists are dead-simple mailing lists for GitHub projects.
-
-[Click here]($invite_url) to join the list. If you don't want to join, just ignore this message.
-
-Have a great day!
-""" % (user["login"], "http://github.com/" + user["login"],
-       repo["name"], github_url)}
-
     for username in to_invite:
-        member_user = github.user_info(username)
-        if not member_user.get("email", None):
-            continue
-
-        group.add_member(member_user["email"],
-                         display_name=member_user.get("name", ""),
-                         welcome_message=welcome_message,
-                         send_invite=True)
+        db.pending_invite(repo["name"], github_url, user["login"],
+                          username, group.id)
 
     db.new_list(repo["name"], user["login"], group.id)
     flask.flash("Your Gitlist has been created &ndash; check your email at '%s'." % user["email"])
@@ -265,6 +297,7 @@ class GitlistsDaemon(daemon.Daemon):
 
 if __name__ == '__main__':
     port = 7176
+
     if len(sys.argv) > 2:
         port = int(sys.argv[2])
     if settings.env == "prod":

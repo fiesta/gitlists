@@ -2,6 +2,7 @@ import json
 import re
 import StringIO
 import sys
+import time
 import unittest
 import urllib
 sys.path[0:0] = [""]
@@ -19,6 +20,9 @@ import www
 GITHUB = {}
 
 RATE_LIMITED = False
+
+
+www.SLEEP_INTERVAL = 0.1
 
 
 # A little monkey-patching
@@ -130,6 +134,7 @@ class TestWWW(BaseTest):
         res = self.submit(res.form)
         self.assertIn("Gitlist has been created", res)
 
+        time.sleep(0.7)
         mailbox = sandbox.mailbox()
         self.assertEqual(2, len(mailbox))
         self.assertEqual(1, len(mailbox["test@example.com"]))
@@ -156,6 +161,7 @@ class TestWWW(BaseTest):
         res = self.submit(res.form)
         self.assertIn("Gitlist has been created", res)
 
+        time.sleep(0.7)
         mailbox = sandbox.mailbox()
         self.assertEqual(2, len(mailbox))
         self.assertEqual(1, len(mailbox["test@example.com"]))
@@ -185,6 +191,7 @@ class TestWWW(BaseTest):
         res = self.submit(res.form)
         self.assertIn("Gitlist has been created", res)
 
+        time.sleep(0.7)
         mailbox = sandbox.mailbox()
         self.assertEqual(2, len(mailbox))
         self.assertEqual(1, len(mailbox["test@example.com"]))

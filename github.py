@@ -115,17 +115,15 @@ def current_user():
 def user_info(username):
     existing = db.user(username)
     if existing:
-        return existing
+        return existing, True
 
     u = "http://github.com/api/v2/json/user/show/" + username
     data = json.loads(urlopen(u).read())
     if "error" in data:
-        if "Rate Limit" in data["error"][0]:
-            raise RateLimited()
         raise Error("GitHub error: " + repr(data["error"]))
     data = data["user"]
     db.save_user(username, data.get("email", None), data.get("name", None))
-    return data
+    return data, False
 
 
 def repos(org=None):

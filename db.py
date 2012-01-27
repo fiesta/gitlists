@@ -51,3 +51,16 @@ def save_user(username, email_address, display_name):
 
 def user(username):
     return db.users.find_one({"_id": username})
+
+
+# Invite queue
+def pending_invite(repo_name, github_url, inviter, username, group_id):
+    db.invites.save({"repo_name": repo_name,
+                     "github_url": github_url,
+                     "inviter": inviter,
+                     "username": username,
+                     "group_id": group_id}, safe=True)
+
+
+def next_invite():
+    return db.invites.find_and_modify(remove=True, sort={'_id': -1})
