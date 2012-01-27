@@ -18,13 +18,19 @@ import www
 
 GITHUB = {}
 
+RATE_LIMITED = False
+
 
 # A little monkey-patching
 def our_urlopen(url, params=None):
+    global GITHUB
+    global RATE_LIMITED
     response = ""
     gh_match = re.match(r"^https://api\.github\.com(/.*)\?.+$", url)
     if url.startswith("https://github.com/login/oauth/access_token"):
         response = 'access_token=dummy'
+    elif gh_match and RATE_LIMITED:
+        response = json.dumps({'error': 'Rate Limit Exceeded'})
     elif url.startswith("http://github.com/api/v2/json/user/show/"):
         _, _, handle = url.rpartition("/")
         response = json.dumps(GITHUB.get("_user/" + handle))
@@ -58,7 +64,7 @@ class BaseTest(unittest.TestCase):
 
     def get(self, url, prev=None, status=None, **kwargs):
         if prev:
-            cookie = prev.headers["Set-Cookie"]
+            cookie = prev.headers.get("Set-Cookie", None)
             if cookie:
                 kwargs["Cookie"] = cookie
         return self.app.get(url, status=status, headers=kwargs)
@@ -79,6 +85,9 @@ class TestWWW(BaseTest):
     def setUp(self):
         global GITHUB
         GITHUB = {}
+
+        global RATE_LIMITED
+        RATE_LIMITED = False
 
         sandbox.reset()
 
@@ -189,4 +198,19 @@ class TestWWW(BaseTest):
         self.assertIn("There are already gitlist(s) called <strong>test", res)
 
     def test_github_rate_limiting(self):
-        raise errors.TODO()
+        global RATE_LIMITED
+        global GITHUB
+
+        RATE_LIMITED = True
+        GITHUB = {"/user": {"name": "Mike Dirolf",
+                            "login": "mdirolf",
+                            "email": "mike@example.com"},
+                  "/user/orgs": [],
+                  "/user/repos": []}
+
+        res = self.follow(self.follow(self.get("/auth/github?code=dummy")))
+        self.assertIn('hit the GitHub API rate limit', res)
+
+        RATE_LIMITED = False
+        res = self.get('/', res)
+        self.assertIn('Hi <strong>mdirolf', res)
