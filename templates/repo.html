@@ -2,6 +2,22 @@
 
 {% block content %}
 <h2><strong>{{ repo.name }}</strong>@gitlists.com</h2>
+{% if existing_own %}
+<p>You already created a gitlist(s) called <strong>{{ repo.name }}</strong>:</p>
+<ul>
+  {% for existing in existing_own %}
+  <li><a href="https://fiesta.cc/list/{{ existing["group_id"] }}">{{ repo.name }}</a></li>
+  {% endfor %}
+</ul>
+{% endif %}
+{% if existing_not_own %}
+<p>There are already gitlist(s) called <strong>{{ repo.name }}</strong>, maybe you want to join one of them?</p>
+<ul>
+  {% for existing in existing_not_own %}
+  <li><a href="https://fiesta.cc/list/{{ existing["group_id"] }}">{{ existing["username"] }}/{{ repo.name }}</a></li>
+  {% endfor %}
+</ul>
+{% endif %}
 <p>Click "<em>Party on</em>" to create the list. A low-pressure invitation will be sent to {% if org %}any members of <strong>{{ org.login }}</strong> and {% endif %}any of <strong>{{ repo.name }}</strong>'s collaborators, contributors, forkers, and watchers who have a public GitHub email address. To join they'll just click a link in the email.</p>
 
 <form name="create" method="POST">

@@ -111,7 +111,12 @@ def repo_page(name, org=None):
     if not repo:
         return flask.abort(404, "No matching repo")
 
+    existing_own = list(db.existing_own(name, user["login"]))
+    existing_not_own = list(db.existing_not_own(name, user["login"]))
+
     return flask.render_template("repo.html", repo=repo, org=org,
+                                 existing_own=existing_own,
+                                 existing_not_own=existing_not_own,
                                  **gen_xsrf(["create"]))
 
 
@@ -200,6 +205,7 @@ Have a great day!
                          welcome_message=welcome_message,
                          send_invite=True)
 
+    db.new_list(repo["name"], user["login"], group.id)
     flask.flash("Your Gitlist has been created - check your email at '%s'." % user["email"])
     return flask.redirect("/")
 

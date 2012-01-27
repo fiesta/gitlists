@@ -12,7 +12,7 @@ except:
 
 def create_indexes():
     db.memo.create_index("u")
-    db.beta.create_index("gh", unique=True)
+    db.lists.create_index([("name", 1), ("username", 1)])
 
 
 # Caching arbitrary URIs
@@ -27,12 +27,19 @@ def memoize(uri, data):
     db.memo.save({"u": uri, "d": data})
 
 
-# Beta signups
-def beta(username):
-    try:
-        db.beta.save({"gh": username}, safe=True)
-    except pymongo.errors.DuplicateKeyError:
-        pass
+# Created lists
+def new_list(name, username, group_id):
+    db.lists.save({"name": name,
+                   "group_id": group_id,
+                   "username": username}, safe=True)
+
+
+def existing_own(name, username):
+    return db.lists.find({"name": name, "username": username})
+
+
+def existing_not_own(name, username):
+    return db.lists.find({"name": name, "username": {"$ne": username}})
 
 
 # Memoizing github user data
