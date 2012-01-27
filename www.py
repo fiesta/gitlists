@@ -206,7 +206,7 @@ Have a great day!
                          send_invite=True)
 
     db.new_list(repo["name"], user["login"], group.id)
-    flask.flash("Your Gitlist has been created - check your email at '%s'." % user["email"])
+    flask.flash("Your Gitlist has been created &ndash; check your email at '%s'." % user["email"])
     return flask.redirect("/")
 
 
