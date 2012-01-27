@@ -38,7 +38,9 @@ if settings.env == "prod":
                                    smtp_server=settings.relay_host)
 
 
-SLEEP_INTERVAL = 1
+# GH API rate is 60 calls per minute, but we run this from two
+# processes, so each gets 30 per minute.
+SLEEP_INTERVAL = 2.1
 
 class SendInvites(threading.Thread):
     '''
