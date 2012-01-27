@@ -74,16 +74,18 @@ def finish_auth():
     return flask.redirect("/")
 
 
-def make_request(u, big=False):
-    # We memo-ize requests to keep from hammering GH's API.
+def make_request(u, big=False, memoize=False):
+    # We try to memo-ize requests to keep from hammering GH's API.
     u = "https://api.github.com%s?access_token=%s" % (u, flask.session["g"])
     if big:
         u += "&per_page=100"
-    data = db.memoized(u)
-    if not data:
+    if memoize:
+        data = db.memoized(u)
+    if not memoize or not data:
         try:
             data = urlopen(u).read()
-            db.memoize(u, data)
+            if memoize:
+                db.memoize(u, data)
         except IOError, e:
             if e.args[1] == 401:
                 raise Reauthorize("Got a 401...")
@@ -128,12 +130,12 @@ def user_info(username):
 
 def repos(org=None):
     if org:
-        return make_request("/orgs/%s/repos" % org)
+        return make_request("/orgs/%s/repos" % org, memoize=True)
     return make_request("/user/repos")
 
 
 def user_list(url):
-    c = make_request(url, True)
+    c = make_request(url, True, True)
     if not c or isinstance(c, dict):
         return []
     return [x["login"] for x in c]

@@ -156,7 +156,37 @@ class TestWWW(BaseTest):
         self.assertIn("You already created a gitlist(s) called <strong>test", res)
 
     def test_create_other_existing(self):
-        raise errors.TODO()
+        global GITHUB
+        GITHUB = {"/user": {"name": "Mike Dirolf",
+                            "login": "mdirolf",
+                            "email": "mike@example.com"},
+                  "/user/orgs": [],
+                  "/user/repos": [{"name": "test",
+                                   "description": "My test repo"}],
+                  "/repos/mdirolf/test/collaborators": [{"login": "testuser"}],
+                  "/repos/mdirolf/test/contributors": [],
+                  "/repos/mdirolf/test/forks": [],
+                  "/repos/mdirolf/test/watchers": [],
+                  "_user/testuser": {"user": {"email": "test@example.com"}}}
+
+        res = self.follow(self.get("/auth/github?code=dummy"))
+
+        self.assertIn("My test repo", res)
+        res = self.get("/repo/test", res)
+        res = self.submit(res.form)
+        self.assertIn("Gitlist has been created", res)
+
+        mailbox = sandbox.mailbox()
+        self.assertEqual(2, len(mailbox))
+        self.assertEqual(1, len(mailbox["test@example.com"]))
+        self.assertEqual(1, len(mailbox["mike@example.com"]))
+
+        GITHUB["/user"] = {"name": "Jim Dirolf",
+                           "login": "jdirolf",
+                           "email": "jim@example.com"}
+        res = self.follow(self.get("/auth/github?code=dummy"))
+        res = self.get("/repo/test", res)
+        self.assertIn("There are already gitlist(s) called <strong>test", res)
 
     def test_github_rate_limiting(self):
         raise errors.TODO()
