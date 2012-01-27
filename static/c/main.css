@@ -11,6 +11,11 @@ ul {
 ul li {
     margin-top: 0.75em;
     list-style-type: none;
+    overflow-x: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    -o-text-overflow: ellipsis;
+    -ms-text-overflow: ellipsis;
 }
 #f {
     padding-top: 2em;
