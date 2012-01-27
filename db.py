@@ -63,4 +63,4 @@ def pending_invite(repo_name, github_url, inviter, username, group_id):
 
 
 def next_invite():
-    return db.invites.find_and_modify(remove=True, sort={'_id': -1})
+    return db.invites.find_and_modify(remove=True, sort={'_id': 1})
