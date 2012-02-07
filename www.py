@@ -83,6 +83,7 @@ Have a great day!
 
 # Invite thread
 send_invites = SendInvites()
+send_invites.daemon = True
 send_invites.start()
 
 
